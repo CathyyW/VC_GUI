@@ -1,3 +1,5 @@
+export HF_ENDPOINT=https://hf-mirror.com
+export WANDB_DISABLED=true
 deepspeed \
   --num_gpus=1 \
   train/train.py \
