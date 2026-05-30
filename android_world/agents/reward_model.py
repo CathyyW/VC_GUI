@@ -153,7 +153,10 @@ def load_lora_model(model_name, lora_rank=16, lora_alpha=32, if_train=False):
 
 def load_lora_model_from_dir(model_name, lora_path, lora_name='default', kv_cache=False, tokenizer=None, train_from_scratch=1, enable_prefix_caching=True, if_train=False):
     if kv_cache:
-        snapshot_download(repo_id=lora_path)
+        if os.path.isdir(lora_path):
+            adapter_dir = lora_path
+        else:
+            adapter_dir = snapshot_download(repo_id=lora_path)
         model = LLM(
             model=model_name,
             tokenizer=lora_path if "llama" in model_name.lower() else model_name,
@@ -202,7 +205,7 @@ def load_lora_model_from_dir(model_name, lora_path, lora_name='default', kv_cach
 
 
 def load_v_head_from_dir(v_head, lora_path, cluster, device, train_from_scratch=1):
-    if cluster and train_from_scratch:
+    if os.path.isdir(lora_path):
         v_head_weights_path = os.path.join(lora_path, "v_head.pth")
     else:
         v_head_weights_path = hf_hub_download(repo_id=lora_path, filename="v_head.pth")

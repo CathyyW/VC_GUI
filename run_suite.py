@@ -54,6 +54,7 @@ def _find_adb_directory() -> str:
         os.path.expanduser('/Users/daigaole/Documents/platform-tools/adb'),
         os.path.expanduser('/root/.android/platform-tools/adb'),
         os.path.expanduser('/home/emdl/.android/platform-tools/adb'),
+        os.path.expanduser('/root/autodl-tmp/android-sdk/platform-tools/adb'),
     ]
     for path in potential_paths:
         if os.path.isfile(path):
@@ -139,6 +140,11 @@ _SERVICE_NAME = flags.DEFINE_string(
 )
 _SAVE_NAME = flags.DEFINE_string('save_name', 'test', help='Path to store the results.')
 _LORA_DIR = flags.DEFINE_string('lora_dir', 'V-Droid-8B-0323', help='The path to the lora module.')
+_BASE_MODEL = flags.DEFINE_string(
+    'base_model',
+    'unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit',
+    help='Base model repo id or local path.',
+)
 _ITERATION = flags.DEFINE_string('iteration', '1', help='The search iteration.')
 _SUMMARY = flags.DEFINE_string('summary', 'llm', help='The summary mode.')
 _NUM_GPUS = flags.DEFINE_integer('num_gpus', 2, help='The num of gpu for parallel execution of verifier.')
@@ -186,7 +192,7 @@ def _get_agent(
     agent = None
 
     # We use llama-3.1-8B-Instruct as the base model for V-Droid.
-    base_model_name = "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit"
+    base_model_name = _BASE_MODEL.value
 
     if _AGENT_NAME.value == "VDroid":
         agent = vdroid.VDroidAgent(env, base_model_name, adapter_dir=_LORA_DIR.value, llm_name=_LLM_NAME.value, service_name=_SERVICE_NAME.value, n_iters=int(
