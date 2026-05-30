@@ -492,15 +492,17 @@ def get_file_list_with_metadata(
       # In shell output, the first character is used to indicate file type and
       # "-" means the file is a regular file.
       if file_details.startswith("-"):
+        fields = file_details.split(maxsplit=8)
+        if len(fields) < 9:
+          continue
+        file_name = fields[8]
         files.append(
             FileWithMetadata(
-                file_name=file_details.split(" ")[-1],
-                full_path=os.path.join(
-                    directory_path, file_details.split(" ")[-1]
-                ),
-                file_size=int(file_details.split(" ")[-5]),
+                file_name=file_name,
+                full_path=os.path.join(directory_path, file_name),
+                file_size=int(fields[4]),
                 change_time=datetime.datetime.fromisoformat(
-                    " ".join(file_details.split(" ")[-4:-2])[:-3]
+                    " ".join(fields[5:7])[:-3]
                 ),
             )
         )
