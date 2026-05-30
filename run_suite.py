@@ -142,6 +142,21 @@ _LORA_DIR = flags.DEFINE_string('lora_dir', 'V-Droid-8B-0323', help='The path to
 _ITERATION = flags.DEFINE_string('iteration', '1', help='The search iteration.')
 _SUMMARY = flags.DEFINE_string('summary', 'llm', help='The summary mode.')
 _NUM_GPUS = flags.DEFINE_integer('num_gpus', 2, help='The num of gpu for parallel execution of verifier.')
+_CLOSED_LOOP = flags.DEFINE_boolean(
+    'closed_loop',
+    False,
+    help='Whether to enable planner/subgoal/reflection closed-loop execution.',
+)
+_MAX_REPLANS = flags.DEFINE_integer(
+    'max_replans',
+    2,
+    help='Maximum number of reflection-based replans in closed-loop mode.',
+)
+_SUBGOAL_STEP_LIMIT = flags.DEFINE_integer(
+    'subgoal_step_limit',
+    4,
+    help='Default max V-Droid execution steps for each planner subgoal.',
+)
 
 
 _FIXED_TASK_SEED = flags.DEFINE_boolean(
@@ -175,7 +190,9 @@ def _get_agent(
 
     if _AGENT_NAME.value == "VDroid":
         agent = vdroid.VDroidAgent(env, base_model_name, adapter_dir=_LORA_DIR.value, llm_name=_LLM_NAME.value, service_name=_SERVICE_NAME.value, n_iters=int(
-            _ITERATION.value), family=family, summary_mode=_SUMMARY.value, num_actors=_NUM_GPUS.value)
+            _ITERATION.value), family=family, summary_mode=_SUMMARY.value, num_actors=_NUM_GPUS.value,
+            closed_loop=_CLOSED_LOOP.value, max_replans=_MAX_REPLANS.value,
+            subgoal_step_limit=_SUBGOAL_STEP_LIMIT.value)
 
     if not agent:
         raise ValueError(f'Unknown agent: {_AGENT_NAME.value}')

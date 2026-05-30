@@ -121,6 +121,137 @@ ACTION_COMPLETION_PROMPT_TEMPLATE = (
 )
 
 
+PLANNER_PROMPT_TEMPLATE = (
+    'You are the planning agent for an Android automation system.\n\n'
+    'Your job is to decompose the user task into short, verifiable subgoals.\n'
+    'Do NOT output low-level UI actions such as click index, scroll direction, or coordinates.\n'
+    'Each subgoal must be executable by a GUI action agent and must have an observable expected outcome.\n\n'
+    'Overall user goal:\n{goal}\n\n'
+    'Current screen HTML description:\n{screen_html}\n\n'
+    'Execution memory so far:\n{memory}\n\n'
+    'Rules:\n'
+    '- Produce 2 to 6 subgoals unless the task is already complete or infeasible.\n'
+    '- Each subgoal should be concrete and short-horizon.\n'
+    '- Each expected_outcome must be checkable from the next screen or recent action history.\n'
+    '- Do not assume hidden state that cannot be observed.\n'
+    '- If the task is already complete, return an empty subgoals list and task_status="complete".\n'
+    '- Output only valid JSON. Do not include markdown fences or extra explanation.\n\n'
+    'JSON schema:\n'
+    '{{\n'
+    '  "task_status": "in_progress" | "complete" | "infeasible",\n'
+    '  "overall_strategy": "...",\n'
+    '  "subgoals": [\n'
+    '    {{\n'
+    '      "id": "sg1",\n'
+    '      "subgoal": "...",\n'
+    '      "expected_outcome": "...",\n'
+    '      "max_steps": 3,\n'
+    '      "failure_hint": "..."\n'
+    '    }}\n'
+    '  ]\n'
+    '}}\n'
+)
+
+
+REPLAN_PROMPT_TEMPLATE = (
+    'You are replanning after a failed Android automation subgoal.\n\n'
+    'Overall user goal:\n{goal}\n\n'
+    'Previous plan:\n{previous_plan}\n\n'
+    'Completed subgoals:\n{completed_subgoals}\n\n'
+    'Failed subgoal:\n{failed_subgoal}\n\n'
+    'Expected outcome that was not achieved:\n{expected_outcome}\n\n'
+    'Execution memory:\n{memory}\n\n'
+    'Current screen HTML description:\n{screen_html}\n\n'
+    'Analyze why the previous plan failed, then generate a revised plan from the current screen.\n'
+    'Treat completed subgoals as already finished; do not include them again in revised_subgoals.\n'
+    'Do not repeat the same failed action unless the reason is fixed.\n'
+    'If recovery is needed, make the first revised subgoal a recovery subgoal.\n'
+    'Do not output low-level UI actions such as click index, scroll direction, or coordinates.\n'
+    'Output only valid JSON. Do not include markdown fences or extra explanation.\n\n'
+    'JSON schema:\n'
+    '{{\n'
+    '  "reflection": "...",\n'
+    '  "failure_type": "wrong_screen|missing_element|bad_input|premature_finish|loop|unknown",\n'
+    '  "revised_subgoals": [\n'
+    '    {{\n'
+    '      "id": "sg1",\n'
+    '      "subgoal": "...",\n'
+    '      "expected_outcome": "...",\n'
+    '      "max_steps": 3,\n'
+    '      "failure_hint": "..."\n'
+    '    }}\n'
+    '  ]\n'
+    '}}\n'
+)
+
+
+def _compact_prompt_value(value, max_chars: int = 6000) -> str:
+    if value is None:
+        return 'Not available'
+    if isinstance(value, str):
+        text = value
+    else:
+        text = json.dumps(value, ensure_ascii=False, indent=2)
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars] + '\n...[truncated]'
+
+
+def planner_prompt(
+    goal: str,
+    screen_html: str,
+    memory: list[str] | str | None = None,
+) -> str:
+    if isinstance(memory, list):
+        memory = '\n'.join(memory) if memory else 'No prior execution memory.'
+    return PLANNER_PROMPT_TEMPLATE.format(
+        goal=goal,
+        screen_html=_compact_prompt_value(screen_html),
+        memory=_compact_prompt_value(memory),
+    )
+
+
+def replan_prompt(
+    goal: str,
+    previous_plan,
+    completed_subgoals,
+    failed_subgoal,
+    expected_outcome: str,
+    memory: list[str] | str | None,
+    screen_html: str,
+) -> str:
+    if isinstance(memory, list):
+        memory = '\n'.join(memory) if memory else 'No execution memory.'
+    return REPLAN_PROMPT_TEMPLATE.format(
+        goal=goal,
+        previous_plan=_compact_prompt_value(previous_plan, max_chars=4000),
+        completed_subgoals=_compact_prompt_value(completed_subgoals, max_chars=3000),
+        failed_subgoal=_compact_prompt_value(failed_subgoal, max_chars=2000),
+        expected_outcome=expected_outcome or 'Not available',
+        memory=_compact_prompt_value(memory, max_chars=5000),
+        screen_html=_compact_prompt_value(screen_html),
+    )
+
+
+def subgoal_aware_goal(
+    overall_goal: str,
+    subgoal: str,
+    expected_outcome: str,
+) -> str:
+    return (
+        'Overall user goal:\n'
+        f'{overall_goal}\n\n'
+        'Current subgoal:\n'
+        f'{subgoal}\n\n'
+        'Expected outcome for this subgoal:\n'
+        f'{expected_outcome}\n\n'
+        'Important:\n'
+        '- Judge whether the action helps complete the current subgoal.\n'
+        '- The action must also remain consistent with the overall user goal.\n'
+        '- The action {"action_type": "status", "goal_status": "complete"} is helpful only if the expected outcome is already satisfied.\n'
+    )
+
+
 def action_completion_prompt(
     goal: str,
     action: str,

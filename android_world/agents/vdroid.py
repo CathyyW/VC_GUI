@@ -14,11 +14,12 @@ from abc import ABC, abstractmethod
 import math
 import os
 import re
+import json
 from PIL import Image
 from tqdm import trange
 from copy import deepcopy
 from math import ceil
-from typing import Type
+from typing import Any, Type
 import torch
 
 from android_world.task_evals import task_eval
@@ -131,6 +132,9 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         family: str = "android_world",
         summary_mode: str = 'llm',
         num_actors: int = 2,
+        closed_loop: bool = False,
+        max_replans: int = 2,
+        subgoal_step_limit: int = 4,
     ):
         """Initializes a M3A Agent.
 
@@ -212,6 +216,10 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
 
         self.family = family
         self.summary_mode = summary_mode
+        self.closed_loop = closed_loop
+        self.max_replans = max_replans
+        self.subgoal_step_limit = subgoal_step_limit
+        self.closed_loop_trace = []
 
         warmup_futs = [act.warm_up.remote() for act in actors]
         ray.get(warmup_futs)
@@ -872,97 +880,335 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         node.score = node.score - 10  # assign penalty to it
         return
 
-    def search(self,):
-        self._output_cum_reward = -math.inf
-        self._output_iter = None
+    def _parse_json_response(self, response: str) -> dict[str, Any] | None:
+        if not response:
+            return None
+        response = response.strip()
+        fence_match = re.search(r'```(?:json)?\s*(.*?)\s*```', response, re.DOTALL)
+        if fence_match:
+            response = fence_match.group(1).strip()
+        try:
+            parsed = json.loads(response)
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            pass
+
+        start = response.find('{')
+        end = response.rfind('}')
+        if start == -1 or end == -1 or start >= end:
+            return None
+        try:
+            parsed = json.loads(response[start:end + 1])
+            return parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            return None
+
+    def _normalize_subgoals(self, plan: dict[str, Any] | list[Any] | None) -> list[dict[str, Any]]:
+        if plan is None:
+            return []
+        if isinstance(plan, dict):
+            subgoals = plan.get('subgoals') or plan.get('revised_subgoals') or []
+        else:
+            subgoals = plan
+
+        normalized = []
+        for idx, subgoal in enumerate(subgoals):
+            if isinstance(subgoal, str):
+                subgoal = {
+                    'subgoal': subgoal,
+                    'expected_outcome': subgoal,
+                }
+            if not isinstance(subgoal, dict):
+                continue
+            item = dict(subgoal)
+            item.setdefault('id', f'sg{idx + 1}')
+            item.setdefault('subgoal', item.get('step', ''))
+            item.setdefault('expected_outcome', item.get('expect_outcome', item.get('outcome', item['subgoal'])))
+            item.setdefault('max_steps', self.subgoal_step_limit)
+            item.setdefault('failure_hint', '')
+            normalized.append(item)
+        return normalized
+
+    def _fallback_plan(self, goal: str, reason: str) -> dict[str, Any]:
+        return {
+            'task_status': 'in_progress',
+            'overall_strategy': f'Fallback to the original V-Droid goal because {reason}.',
+            'subgoals': [{
+                'id': 'sg1',
+                'subgoal': goal,
+                'expected_outcome': 'The original user task is completed.',
+                'max_steps': self.subgoal_step_limit,
+                'failure_hint': 'Use the original V-Droid verifier behavior.',
+            }],
+        }
+
+    def generate_plan(self, goal: str, screen_html: str, memory: list[str] | None = None) -> dict[str, Any]:
+        prompt = planner_prompt(goal, screen_html, memory or [])
+        response, _, raw_response = self.llm.predict_mm(prompt, [])
+        plan = self._parse_json_response(response)
+        if plan is None:
+            plan = self._fallback_plan(goal, 'the planner response was not valid JSON')
+        plan['planner_prompt'] = prompt
+        plan['planner_raw_response'] = response
+        plan['planner_call_succeeded'] = raw_response is not None
+        return plan
+
+    def replan(
+        self,
+        goal: str,
+        previous_plan: dict[str, Any],
+        completed_subgoals: list[dict[str, Any]],
+        failed_subgoal: dict[str, Any],
+        memory: list[str],
+        screen_html: str,
+    ) -> dict[str, Any]:
+        prompt = replan_prompt(
+            goal=goal,
+            previous_plan=previous_plan,
+            completed_subgoals=completed_subgoals,
+            failed_subgoal=failed_subgoal,
+            expected_outcome=failed_subgoal.get('expected_outcome', ''),
+            memory=memory,
+            screen_html=screen_html,
+        )
+        response, _, raw_response = self.llm.predict_mm(prompt, [])
+        plan = self._parse_json_response(response)
+        if plan is None:
+            plan = self._fallback_plan(goal, 'the replanner response was not valid JSON')
+        plan['replan_prompt'] = prompt
+        plan['replan_raw_response'] = response
+        plan['replan_call_succeeded'] = raw_response is not None
+        return plan
+
+    def format_subgoal_goal(self, overall_goal: str, subgoal: dict[str, Any]) -> str:
+        return subgoal_aware_goal(
+            overall_goal,
+            subgoal.get('subgoal', ''),
+            subgoal.get('expected_outcome', ''),
+        )
+
+    def _closed_loop_memory_from_output(self, output: list[dict[str, Any]]) -> list[str]:
+        memory = []
+        for idx, step_info in enumerate(output):
+            summary = step_info.get('summary')
+            if summary:
+                memory.append(f'Step {idx + 1}- {summary}')
+        return memory
+
+    def _annotate_closed_loop_output(
+        self,
+        output: list[dict[str, Any]],
+        plan_version: int,
+        subgoal: dict[str, Any],
+    ) -> None:
+        for step_info in output:
+            step_info['closed_loop_plan_version'] = plan_version
+            step_info['current_subgoal_id'] = subgoal.get('id')
+            step_info['current_subgoal'] = subgoal.get('subgoal')
+            step_info['expected_outcome'] = subgoal.get('expected_outcome')
+
+    def closed_loop_search(self):
+        original_goal = self.goal
+        self.closed_loop_trace = []
 
         self._reset_and_construct_root()
+        plan = self.generate_plan(
+            original_goal,
+            self.root.node_info.get('html_desc'),
+            memory=[],
+        )
+        self.closed_loop_trace.append({'event': 'plan', 'plan': plan})
 
-        terminal_iter = False
-        # we can allow the agents to try multiple times in emulator but v-droid only try once.
-        for idx in trange(self.n_iters, disable=True, desc='search iteration', leave=False):
-            self.iter_idx += 1
-            path = self.iterate(self.root, self.iter_idx)
-            for idx, node in enumerate(path):
-                if node.is_terminal:
-                    terminal_iter = True
-                    break
+        if plan.get('task_status') == 'complete':
+            self.root.node_info['summary'] = 'Planner judged the task already complete.'
+            self.root.node_info['closed_loop_plan'] = plan
+            return True, [self.root.node_info]
+        if plan.get('task_status') == 'infeasible':
+            self.root.node_info['summary'] = 'Planner judged the task infeasible.'
+            self.root.node_info['closed_loop_plan'] = plan
+            return True, [self.root.node_info]
 
-                if idx == len(path) - 1 and node.children is not None:
-                    scores = [child.score for child in node.children]
-                    child = node.children[self.simulate_choice(scores)]
+        subgoals = self._normalize_subgoals(plan)
+        if not subgoals:
+            plan = self._fallback_plan(original_goal, 'the planner returned no subgoals')
+            subgoals = self._normalize_subgoals(plan)
 
-                    try:
-                        converted_action = json_action.JSONAction(
-                            **agent_utils.extract_json(child.action),
-                        )
-                        node.node_info['action_output_json'] = converted_action
+        all_output = []
+        completed_subgoals = []
+        previous_plan = plan
+        plan_version = 0
+        replan_count = 0
+        subgoal_idx = 0
 
-                    except Exception as e:
-                        converted_action = None
-                        print('Failed to convert the output to a valid action.')
-                        print(str(e))
+        while subgoal_idx < len(subgoals):
+            subgoal = subgoals[subgoal_idx]
+            execution_goal = self.format_subgoal_goal(original_goal, subgoal)
+            step_limit = int(subgoal.get('max_steps') or self.subgoal_step_limit)
 
-                        node.state = node.parent.state.copy()
-                        node.node_info['summary'] = (
-                            'Can not parse the output to a valid action. Please make sure to pick'
-                            ' the action from the list with required parameters (if any) in the'
-                            ' correct JSON format!'
-                        )
-                        node.node_info['ui_elements'] = node.parent.node_info['ui_elements'].copy(
-                        )
-                        if node.parent.node_info['html_desc']:
-                            node.node_info['html_desc'] = node.parent.node_info['html_desc']
-                        # we dont do penalty here to avoid double penalty
-                        self._assign_action_failure_penalty(node)
+            is_done, output = self._search_once_for_goal(
+                execution_goal,
+                step_limit=step_limit,
+            )
+            self._annotate_closed_loop_output(output, plan_version, subgoal)
+            all_output.extend(output)
 
-                    if converted_action is not None:
-                        if converted_action.action_type == 'status':
-                            if converted_action.goal_status == 'infeasible':
-                                print(
-                                    'Agent stopped since it thinks mission impossible.')
-                            node.node_info['summary'] = 'Agent thinks the request has been completed.'
+            event = {
+                'event': 'subgoal_result',
+                'plan_version': plan_version,
+                'subgoal': subgoal,
+                'is_done': is_done,
+                'steps': len(output),
+            }
+            self.closed_loop_trace.append(event)
+
+            if is_done:
+                completed_subgoals.append(subgoal)
+                subgoal_idx += 1
+                continue
+
+            if replan_count >= self.max_replans:
+                break
+
+            memory = self._closed_loop_memory_from_output(all_output)
+            current_html = None
+            if output:
+                current_html = output[-1].get('html_desc')
+            if not current_html and hasattr(self, 'root'):
+                current_html = self.root.node_info.get('html_desc')
+
+            previous_plan = self.replan(
+                original_goal,
+                previous_plan,
+                completed_subgoals,
+                subgoal,
+                memory,
+                current_html,
+            )
+            self.closed_loop_trace.append({'event': 'replan', 'plan': previous_plan})
+
+            revised_subgoals = self._normalize_subgoals(previous_plan)
+            if not revised_subgoals:
+                break
+            subgoals = revised_subgoals
+            plan_version += 1
+            replan_count += 1
+            subgoal_idx = 0
+
+        is_complete = len(completed_subgoals) == len(subgoals) and len(subgoals) > 0
+        if all_output:
+            all_output[-1]['closed_loop_trace'] = self.closed_loop_trace
+        return is_complete, all_output
+
+    def search(self,):
+        if self.closed_loop:
+            return self.closed_loop_search()
+        return self._search_once_for_goal(self.goal)
+
+    def _search_once_for_goal(self, execution_goal: str, step_limit: int | None = None):
+        original_goal = self.goal
+        original_depth_limit = self.depth_limit
+        original_explore_step_count_limit = self.explore_step_count_limit
+        if step_limit is not None:
+            self.depth_limit = step_limit
+            self.explore_step_count_limit = step_limit
+        self.goal = execution_goal
+
+        try:
+            self._output_cum_reward = -math.inf
+            self._output_iter = None
+
+            self._reset_and_construct_root()
+
+            terminal_iter = False
+            path = [self.root]
+            # we can allow the agents to try multiple times in emulator but v-droid only try once.
+            for idx in trange(self.n_iters, disable=True, desc='search iteration', leave=False):
+                self.iter_idx += 1
+                path = self.iterate(self.root, self.iter_idx)
+                for idx, node in enumerate(path):
+                    if node.is_terminal:
+                        terminal_iter = True
+                        break
+
+                    if idx == len(path) - 1 and node.children is not None:
+                        scores = [child.score for child in node.children]
+                        child = node.children[self.simulate_choice(scores)]
+
+                        try:
+                            converted_action = json_action.JSONAction(
+                                **agent_utils.extract_json(child.action),
+                            )
+                            node.node_info['action_output_json'] = converted_action
+
+                        except Exception as e:
+                            converted_action = None
+                            print('Failed to convert the output to a valid action.')
+                            print(str(e))
+
                             node.state = node.parent.state.copy()
-                            node.is_terminal = True
+                            node.node_info['summary'] = (
+                                'Can not parse the output to a valid action. Please make sure to pick'
+                                ' the action from the list with required parameters (if any) in the'
+                                ' correct JSON format!'
+                            )
                             node.node_info['ui_elements'] = node.parent.node_info['ui_elements'].copy(
                             )
                             if node.parent.node_info['html_desc']:
                                 node.node_info['html_desc'] = node.parent.node_info['html_desc']
-                            node.reward, node.score_details = self.reward(
-                                node.score_details['self_eval'], node.is_terminal)
-                            node.score = node.reward
-                            logging.warning(
-                                f"The final reward for the finished node is {node.reward} ")
+                            # we dont do penalty here to avoid double penalty
+                            self._assign_action_failure_penalty(node)
 
-                            terminal_iter = True
-                            break
+                        if converted_action is not None:
+                            if converted_action.action_type == 'status':
+                                if converted_action.goal_status == 'infeasible':
+                                    print(
+                                        'Agent stopped since it thinks mission impossible.')
+                                node.node_info['summary'] = 'Agent thinks the request has been completed.'
+                                node.state = node.parent.state.copy()
+                                node.is_terminal = True
+                                node.node_info['ui_elements'] = node.parent.node_info['ui_elements'].copy(
+                                )
+                                if node.parent.node_info['html_desc']:
+                                    node.node_info['html_desc'] = node.parent.node_info['html_desc']
+                                node.reward, node.score_details = self.reward(
+                                    node.score_details['self_eval'], node.is_terminal)
+                                node.score = node.reward
+                                logging.warning(
+                                    f"The final reward for the finished node is {node.reward} ")
 
-            if terminal_iter:
-                break
+                                terminal_iter = True
+                                break
 
-        if self.output_strategy == 'max_reward':
-            self._output_cum_reward, self._output_iter = self._dfs_max_reward([
-                                                                              self.root])
-            if self._output_cum_reward == -math.inf:
-                self._output_iter = None
+                if terminal_iter:
+                    break
 
-        is_done = False
-        cal_path = None
-        if self._output_iter is not None:
-            cal_path = self._output_iter
-        else:
-            cal_path = path
+            if self.output_strategy == 'max_reward':
+                self._output_cum_reward, self._output_iter = self._dfs_max_reward([
+                                                                                  self.root])
+                if self._output_cum_reward == -math.inf:
+                    self._output_iter = None
 
-        output = []
-        images = []
-        for node in cal_path:
-            if node.is_terminal == True:
-                is_done = True
-            node.node_info["step_number"] = node.depth
-            output.append(node.node_info)
-            images.append(node.state["screenshot_raw"])
+            is_done = False
+            cal_path = None
+            if self._output_iter is not None:
+                cal_path = self._output_iter
+            else:
+                cal_path = path
 
-        model_name = self.llm.model_name.lower()
-        if 'llama-3.2' in model_name or 'llama-3.1' in model_name or 'deepseek' in model_name:
-            torch.cuda.empty_cache()
-        return is_done, output
+            output = []
+            images = []
+            for node in cal_path:
+                if node.is_terminal == True:
+                    is_done = True
+                node.node_info["step_number"] = node.depth
+                output.append(node.node_info)
+                images.append(node.state["screenshot_raw"])
+
+            model_name = self.llm.model_name.lower()
+            if 'llama-3.2' in model_name or 'llama-3.1' in model_name or 'deepseek' in model_name:
+                torch.cuda.empty_cache()
+            return is_done, output
+        finally:
+            self.goal = original_goal
+            self.depth_limit = original_depth_limit
+            self.explore_step_count_limit = original_explore_step_count_limit
