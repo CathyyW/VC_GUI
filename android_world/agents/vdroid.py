@@ -39,6 +39,74 @@ LARGE_SCORE_SHIFT = 1e3
 SOFT_SCORE_SHIFT = 1e2
 
 
+def _ui_element_text(element: representation_utils.UIElement) -> str:
+    parts = [
+        element.text,
+        element.content_description,
+        element.resource_id,
+        element.class_name,
+    ]
+    return " ".join(str(part) for part in parts if part)
+
+
+def _ui_elements_to_html(ui_elements: list[representation_utils.UIElement]) -> str:
+    lines = ["<div>"]
+    for index, element in enumerate(ui_elements):
+        text = _ui_element_text(element).replace('"', "'")
+        tag = "input" if element.is_editable else "button" if element.is_clickable else "p"
+        attrs = [f"id={index}"]
+        if text:
+            attrs.append(f'text="{text}"')
+        if element.is_scrollable:
+            attrs.append('scrollable="true"')
+        lines.append(f"  <{tag} {' '.join(attrs)}></{tag}>")
+    lines.append("</div>")
+    return "\n".join(lines)
+
+
+def _ui_elements_to_actions(ui_elements: list[representation_utils.UIElement]) -> list[str]:
+    actions = []
+    for index, element in enumerate(ui_elements):
+        if element.is_clickable or element.is_checkable:
+            actions.append(f'{{"action_type": "click", "index": {index}}}')
+            actions.append(f'{{"action_type": "long_press", "index": {index}}}')
+        if element.is_editable:
+            actions.append(
+                f'{{"action_type": "input_text", "text": "<text_input>", "index": {index}}}'
+            )
+            actions.append(f'{{"action_type": "clear_text", "index": {index}}}')
+        if element.is_scrollable:
+            for direction in ("up", "down", "left", "right"):
+                actions.append(
+                    f'{{"action_type": "scroll", "direction": "{direction}", "index": {index}}}'
+                )
+
+    actions.extend([
+        '{"action_type": "navigate_home"}',
+        '{"action_type": "navigate_back"}',
+        '{"action_type": "open_app", "app_name": "<name>"}',
+        '{"action_type": "wait"}',
+        '{"action_type": "status", "goal_status": "complete"}',
+        '{"action_type": "answer", "text": "<answer_text>"}',
+    ])
+    return actions
+
+
+def _state_html_and_actions(ui_state, family: str) -> tuple[str, list[str]]:
+    if ui_state.forest is not None:
+        return (
+            turn_tree_to_html_input(ui_state.forest),
+            extract_actions_with_display_id_v2(
+                ui_state.forest,
+                refine_a11y_tree=family == "android_lab",
+            ),
+        )
+    return (
+        _ui_elements_to_html(ui_state.ui_elements),
+        _ui_elements_to_actions(ui_state.ui_elements),
+    )
+
+
 @ray.remote(num_gpus=1)
 class ModelActor:
     def __init__(self, service_name, model_name, lora_dir, acc_design, temperature=0.2):
@@ -264,13 +332,12 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         
         ui_state = self.get_post_transition_state()
         try:
-            html_desc = turn_tree_to_html_input(ui_state.forest)
+            html_desc, available_actions = _state_html_and_actions(ui_state, self.family)
             node.node_info['html_desc'] = html_desc
         except:
             logging.error("Extract html_desc wrong")
-
-        available_actions = extract_actions_with_display_id_v2(
-            ui_state.forest, refine_a11y_tree=self.family == "android_lab")
+            html_desc = node.parent.node_info.get('html_desc')
+            available_actions = _ui_elements_to_actions(ui_state.ui_elements)
 
         state = {
             'screenshot_raw': None,
@@ -301,8 +368,11 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                     add_image_desc=self.add_image_desc
                 )
 
-        group_bounding_boxes = turn_tree_to_group_bounding_boxes(
-            orientation, logical_screen_size, physical_frame_boundary, ui_state.forest)
+        group_bounding_boxes = (
+            turn_tree_to_group_bounding_boxes(
+                orientation, logical_screen_size, physical_frame_boundary, ui_state.forest)
+            if ui_state.forest is not None else {}
+        )
         if self.add_image_desc:
             m3a_utils.apply_group_bouding_boxes(
                 after_screenshot,
@@ -795,13 +865,11 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         before_screenshot = ui_state.pixels.copy()
 
         if self.input_type == "html":
-            html_desc = turn_tree_to_html_input(ui_state.forest)
+            html_desc, available_actions = _state_html_and_actions(ui_state, self.family)
         elif self.input_type == "image":
             html_desc = None
+            available_actions = _ui_elements_to_actions(ui_state.ui_elements)
         node_info['html_desc'] = html_desc
-
-        available_actions = extract_actions_with_display_id_v2(
-            ui_state.forest, refine_a11y_tree=self.family == "android_lab")
 
         for index, ui_element in enumerate(ui_elements):
             if m3a_utils.validate_ui_element(ui_element, logical_screen_size):
@@ -815,8 +883,11 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                     add_image_desc=self.add_image_desc
                 )
 
-        group_bounding_boxes = turn_tree_to_group_bounding_boxes(
-            orientation, logical_screen_size, physical_frame_boundary, ui_state.forest)
+        group_bounding_boxes = (
+            turn_tree_to_group_bounding_boxes(
+                orientation, logical_screen_size, physical_frame_boundary, ui_state.forest)
+            if ui_state.forest is not None else {}
+        )
         if self.add_image_desc:
             m3a_utils.apply_group_bouding_boxes(
                 before_screenshot,

@@ -4,6 +4,10 @@ export HF_HOME=/root/autodl-tmp/huggingface
 export HF_HUB_CACHE=/root/autodl-tmp/huggingface/hub
 export ANDROID_ENV_A11Y_GRPC_PORT=20000
 
+export OPENAI_ENDPOINT="https://poloai.top/v1"
+export OPENAI_MODEL_NAME=gpt-4o-mini
+export OPENAI_API_KEY=sk-44wgJ1trMWo3RlW3qDpshWPtItDwfFthY5HZA2tPoKu8rTSw
+
 # default configs for the eveluation on androidworld benchmark
 # Use 127.0.0.1:5555 when connecting to a local emulator through SSH reverse forwarding.
 emulator_name="127.0.0.1:15555"
@@ -17,8 +21,8 @@ agent_name="VDroid" # the agent name used for the eveluation, e.g., default t3a,
 base_model="/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct-bnb-4bit"
 lora_name="/root/autodl-tmp/V-Droid/V-Droid-8B-0323" # the name of the folder where the lora weights of VDroid is saved
 summary=llm # the mode for the working memory construction
-llm_name="gpt-4o" # the llm used for the action completion and working memory construction
-service_name="trapi" # the name of the service used for calling the llm above
+llm_name="gpt-4o-mini" # the llm used for the action completion and working memory construction
+service_name="openai" # the name of the service used for calling the llm above
 closed_loop=False # set True to enable planner/subgoal/reflection closed-loop execution
 max_replans=2 # the maximum number of replans after subgoal failure
 subgoal_step_limit=4 # default max execution steps for each subgoal
