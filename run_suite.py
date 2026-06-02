@@ -257,7 +257,7 @@ def _main() -> None:
     if _SUITE_FAMILY.value.startswith('miniwob'):
         agent.transition_pause = _MINIWOB_TRANSITION_PAUSE
     else:
-        agent.transition_pause = None
+        agent.transition_pause = 3.0
 
     checkpoint_dir = f"./saved/" + agent.name + \
         '_' + _SAVE_NAME.value + '/task_info/'
