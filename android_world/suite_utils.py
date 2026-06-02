@@ -391,6 +391,19 @@ def _run_task_suite(
         _update_scoreboard(correct, total, env.controller)
     print()
 
+  if episodes_metadata:
+    summary_log_path = os.path.join(
+        './saved',
+        agent.name + '_' + str(save_name),
+        'task_info',
+        'summary.log',
+    )
+    process_episodes(
+        episodes_metadata,
+        print_summary=True,
+        summary_log_path=summary_log_path,
+    )
+
   return episodes_metadata
 
 
@@ -601,7 +614,9 @@ def _print_results_by_tag(result_df: pd.DataFrame) -> None:
 
 
 def process_episodes(
-    episodes: list[dict[str, Any]], print_summary: bool = False
+    episodes: list[dict[str, Any]],
+    print_summary: bool = False,
+    summary_log_path: str | None = None,
 ) -> pd.DataFrame:
   """Processes task suite results; i.e. the output from `run_task_suite`.
 
@@ -645,6 +660,7 @@ def process_episodes(
   Args:
     episodes: Results from running `run_task_suite`.
     print_summary: Whether to print the dataframe with a summary row.
+    summary_log_path: Optional path to write the printed summary.
 
   Returns:
     A dataframe aggregating results of run.
@@ -702,11 +718,14 @@ def process_episodes(
     pd.set_option('display.max_columns', 100)
     pd.set_option('display.max_rows', 1000)
     pd.set_option('display.width', 1000)
-    print(f'\n\n{result}')
-
     # Add a chart that shows mean success rate by tag and difficulty.
     tags_df = _print_results_by_tag(tagged_result_df)
     pd.set_option('display.precision', 2)
-    print(f'\n\n{tags_df}')
+    summary_text = f'\n\n{result}\n\n{tags_df}'
+    print(summary_text)
+    if summary_log_path is not None:
+      os.makedirs(os.path.dirname(summary_log_path), exist_ok=True)
+      with open(summary_log_path, 'w', encoding='utf-8') as f:
+        f.write(summary_text.lstrip() + '\n')
 
   return tagged_result_df
