@@ -15,8 +15,12 @@
 """Utility functions for interacting with SQLite database on an Android device."""
 
 import os
-import sqlite3
 import time
+
+try:
+  import pysqlite3 as sqlite3  # pytype: disable=import-error
+except ImportError:
+  import sqlite3
 from typing import Optional, Type
 from android_world.env import adb_utils
 from android_world.env import interface

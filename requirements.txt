@@ -34,3 +34,4 @@ openai==1.58.1
 trl
 numpy
 Pillow
+pysqlite3-binary
