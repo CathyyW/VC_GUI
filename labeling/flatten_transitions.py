@@ -3,8 +3,14 @@ import json
 from pathlib import Path
 
 
-def iter_trajectory_files(dataset_dir: Path):
-    yield from sorted(dataset_dir.glob("run_*/trajectories/*.json"))
+def iter_trajectory_files(dataset_dir: Path, run_globs: list[str]):
+    patterns = run_globs or ["run_*"]
+    seen = set()
+    for pattern in patterns:
+        for path in sorted(dataset_dir.glob(f"{pattern}/trajectories/*.json")):
+            if path not in seen:
+                seen.add(path)
+                yield path
 
 
 def selected_score(step):
@@ -22,6 +28,12 @@ def main():
     parser.add_argument("--dataset-dir", required=True, help="Path to cloned cathyww/VC_raw_traj_ADW dataset.")
     parser.add_argument("--output", required=True, help="Output JSONL path.")
     parser.add_argument("--max-history", type=int, default=5, help="Keep only the last N history items.")
+    parser.add_argument(
+        "--run-glob",
+        action="append",
+        default=[],
+        help="Only include matching run directories, e.g. --run-glob run_0605_* . Can be repeated.",
+    )
     args = parser.parse_args()
 
     dataset_dir = Path(args.dataset_dir)
@@ -30,7 +42,7 @@ def main():
 
     count = 0
     with output.open("w", encoding="utf-8") as f:
-        for path in iter_trajectory_files(dataset_dir):
+        for path in iter_trajectory_files(dataset_dir, args.run_glob):
             with path.open("r", encoding="utf-8") as tf:
                 traj = json.load(tf)
 
