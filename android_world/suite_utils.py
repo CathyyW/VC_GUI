@@ -224,6 +224,7 @@ def _run_task(
     save_name: int,
     agent,
     demo_mode: bool,
+    instance_id: int = 0,
 ) -> dict[str, Any]:
   """Runs a task.
 
@@ -243,6 +244,16 @@ def _run_task(
   try:
     task.initialize_task(env)
     print(f'Running task {task.name} with goal "{task.goal}"')
+    if getattr(agent, 'collect_trajectory', False):
+      seed = None
+      if hasattr(task, 'params'):
+        seed = task.params.get(constants.EpisodeConstants.SEED)
+      agent.start_trajectory_episode(
+          task.name,
+          task.goal,
+          instance_id=instance_id,
+          seed=seed,
+      )
     interaction_results = run_episode(agent, task, save_name, demo_mode)
     task_successful = task.is_successful(env)
 
@@ -283,6 +294,28 @@ def _run_task(
       task.tear_down(env)
     except:
       print('tear down failure for this task.')
+
+    if getattr(agent, 'collect_trajectory', False) and getattr(
+        agent, 'trajectory_output_dir', None
+    ):
+      from android_world.agents.trajectory_collector import (
+          save_trajectory,
+          utc_now_iso,
+      )
+
+      trajectory = agent.finish_trajectory_episode(
+          task_success=agent_successful > 0.5,
+          agent_indicated_done=interaction_results.done,
+      )
+      trajectory['collected_at'] = utc_now_iso()
+      trajectory['instance_id'] = instance_id
+      saved_path = save_trajectory(agent.trajectory_output_dir, trajectory)
+      result['trajectory_path'] = saved_path
+      agent.collected_trajectory_count = getattr(
+          agent, 'collected_trajectory_count', 0
+      ) + 1
+      print(f'Saved trajectory to {saved_path}')
+
     return result
 
 
@@ -374,7 +407,19 @@ def _run_task_suite(
         print(f'Skipping already processed task {instance_name}')
         continue
 
-      episode = _run_task(instance, env, save_name, agent, demo_mode=demo_mode)
+      episode = _run_task(
+          instance, env, save_name, agent, demo_mode=demo_mode, instance_id=i
+      )
+
+      if getattr(agent, 'collect_trajectory', False):
+        max_traj = getattr(agent, 'max_trajectories', None)
+        if max_traj is not None and getattr(
+            agent, 'collected_trajectory_count', 0
+        ) >= max_traj:
+          print(
+              f'Reached max_trajectories={max_traj}. Stopping collection.'
+          )
+          return episodes_metadata
       episode[constants.EpisodeConstants.AGENT_NAME] = agent_name
       episode[constants.EpisodeConstants.INSTANCE_ID] = i
       checkpointer.save_episodes([episode], instance_name)

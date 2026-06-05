@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 cd /root/autodl-tmp/V-Droid
 export HF_ENDPOINT=https://hf-mirror.com
 export HF_HOME=/root/autodl-tmp/huggingface
@@ -27,11 +29,58 @@ closed_loop=False # set True to enable planner/subgoal/reflection closed-loop ex
 max_replans=2 # the maximum number of replans after subgoal failure
 subgoal_step_limit=4 # default max execution steps for each subgoal
 num_gpus=1
-save_name="Round110k_try_$(date +%m%d_%H%M%S)" # the saved file name for exp data
+task_range="${1:-}" # optional task id range from android_world_tasks.txt, e.g. 1-5 or 6-10
+task_list_file="./android_world_tasks.txt"
+tasks_arg=()
+
+if [[ -n "$task_range" ]]; then
+    if [[ ! "$task_range" =~ ^[0-9]+-[0-9]+$ ]]; then
+        echo "Invalid task range: $task_range. Use a range like 1-5 or 6-10."
+        exit 1
+    fi
+
+    task_start="${task_range%-*}"
+    task_end="${task_range#*-}"
+    task_start=$((10#$task_start))
+    task_end=$((10#$task_end))
+
+    if (( task_start < 1 || task_end < task_start )); then
+        echo "Invalid task range: $task_range. The start id must be >= 1 and <= end id."
+        exit 1
+    fi
+
+    selected_tasks=()
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^0*([0-9]+)\.\ (.+)$ ]]; then
+            task_id=$((10#${BASH_REMATCH[1]}))
+            if (( task_id >= task_start && task_id <= task_end )); then
+                selected_tasks+=("${BASH_REMATCH[2]}")
+            fi
+        fi
+    done < "$task_list_file"
+
+    if (( ${#selected_tasks[@]} == 0 )); then
+        echo "No tasks found for range ${task_start}-${task_end} in $task_list_file."
+        exit 1
+    fi
+
+    tasks=$(IFS=,; echo "${selected_tasks[*]}")
+    task_range_label="${task_start}-${task_end}"
+    tasks_arg=(--tasks="$tasks")
+    save_name="Round110k_try_${task_range_label}_$(date +%m%d_%H%M%S)" # the saved file name for exp data
+else
+    save_name="Round110k_try_$(date +%m%d_%H%M%S)" # the saved file name for exp data
+fi
 
 mkdir -p "$(dirname "$text_name")"
 
 echo "device_name=$emulator_name console_port=$console_port grpc=$grpc adb_path=$adb_path"
+if [[ -n "$task_range" ]]; then
+    echo "task_range=$task_range_label tasks=$tasks"
+else
+    echo "task_range=all tasks=all"
+fi
+echo "save_name=$save_name"
 
 python run_suite.py \
     --agent_name=$agent_name \
@@ -45,6 +94,7 @@ python run_suite.py \
     --max_replans=$max_replans \
     --subgoal_step_limit=$subgoal_step_limit \
     --save_name=$save_name \
+    "${tasks_arg[@]}" \
     --device_name=$emulator_name \
     --console_port=$console_port \
     --grpc_port=$grpc \

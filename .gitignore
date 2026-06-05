@@ -141,3 +141,4 @@ cython_debug/
 .DS_Store
 /saved
 V-Droid-8B-0323
+collected_trajectories

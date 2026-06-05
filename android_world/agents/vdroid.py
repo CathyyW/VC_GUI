@@ -31,6 +31,8 @@ from typing import Union
 
 import ray
 
+from android_world.agents.trajectory_collector import build_step_record
+
 Node_info = TypeVar("Node_info")
 Action = TypeVar("Action")
 Example = TypeVar("Example")
@@ -203,6 +205,7 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         closed_loop: bool = False,
         max_replans: int = 2,
         subgoal_step_limit: int = 4,
+        collect_trajectory: bool = False,
     ):
         """Initializes a M3A Agent.
 
@@ -289,6 +292,13 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         self.subgoal_step_limit = subgoal_step_limit
         self.closed_loop_trace = []
 
+        self.collect_trajectory = collect_trajectory
+        self.trajectory_steps: list[dict[str, Any]] = []
+        self._trajectory_record_enabled = False
+        self._trajectory_task_id: str | None = None
+        self._trajectory_instance_id: int = 0
+        self._trajectory_seed: int | None = None
+
         warmup_futs = [act.warm_up.remote() for act in actors]
         ray.get(warmup_futs)
         self.num_actors = num_actors
@@ -296,6 +306,78 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
 
     def set_task_guidelines(self, task_guidelines: list[str]) -> None:
         self.additional_guidelines = task_guidelines
+
+    def start_trajectory_episode(
+        self,
+        task_id: str,
+        goal: str,
+        instance_id: int = 0,
+        seed: int | None = None,
+    ) -> None:
+        """Reset per-episode trajectory buffer (collector mode only)."""
+        if not self.collect_trajectory:
+            return
+        self.trajectory_steps = []
+        self._trajectory_task_id = task_id
+        self._trajectory_instance_id = instance_id
+        self._trajectory_seed = seed
+        self._trajectory_episode_goal = goal
+
+    def finish_trajectory_episode(
+        self,
+        task_success: bool,
+        agent_indicated_done: bool,
+    ) -> dict[str, Any]:
+        """Package collected steps into one trajectory dict."""
+        if not self.collect_trajectory:
+            return {}
+        return {
+            "task_id": self._trajectory_task_id,
+            "instance_id": self._trajectory_instance_id,
+            "seed": self._trajectory_seed,
+            "goal": getattr(self, "_trajectory_episode_goal", self.goal),
+            "task_success": task_success,
+            "agent_indicated_done": agent_indicated_done,
+            "steps": self.trajectory_steps,
+        }
+
+    def _trajectory_history_summaries(self) -> list[str]:
+        return [
+            step_info.get("summary", "")
+            for step_info in self.history
+            if step_info.get("summary")
+        ]
+
+    def _try_record_trajectory_step(self, node: MCTSNode) -> None:
+        if not self.collect_trajectory or not self._trajectory_record_enabled:
+            return
+        parent = node.parent
+        if parent is None:
+            return
+        expand_data = getattr(parent, "collector_expand_data", None)
+        if not expand_data:
+            return
+
+        step_record = build_step_record(
+            task_id=self._trajectory_task_id or "unknown",
+            goal=getattr(self, "_trajectory_episode_goal", self.goal),
+            step_id=len(self.trajectory_steps),
+            history=self._trajectory_history_summaries(),
+            before_ui_html=parent.node_info.get("html_desc"),
+            after_ui_html=node.node_info.get("html_desc"),
+            action_space=expand_data["action_space"],
+            scores=expand_data["scores"],
+            selected_action=node.action or expand_data.get("selected_action", ""),
+            summary=node.node_info.get("summary"),
+        )
+        # Same filenames as eval store_screen (written right after step() returns).
+        depth_label = node.depth + 1
+        iter_label = self.iter_idx if self.iter_idx else 1
+        step_record["screenshot"] = f"iter_{iter_label}_step{depth_label}.jpg"
+        step_record["screenshot_ann"] = (
+            f"iter_{iter_label}_step{depth_label}_ann.jpg"
+        )
+        self.trajectory_steps.append(step_record)
 
     def reset(self, go_home_on_reset: bool = False):
         super().reset(go_home_on_reset)
@@ -420,6 +502,8 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
 
         print('Summary: ' + summary)
         logging.warning('Summary: ' + summary)
+        if self._trajectory_record_enabled:
+            self._try_record_trajectory_step(node)
         return state
 
     def iterate(self, node: MCTSNode, iter: int) -> list[MCTSNode]:
@@ -739,7 +823,9 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                     )
                 else:
                     try:
+                        self._trajectory_record_enabled = self.collect_trajectory
                         node.state = self.step(node, converted_action,)
+                        self._trajectory_record_enabled = False
                     except:
                         print(
                             f'Error when taking a step.'
@@ -795,6 +881,8 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
 
         best_child = None
         best_reward = float("-inf")
+        all_actions: list[str] = []
+        all_scores: list[float] = []
 
         for current_batch_size in batch_sizes:
             end_idx = start_idx + current_batch_size
@@ -805,6 +893,8 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                 memory,
                 node.node_info['html_desc']
             )
+            all_actions.extend(action_batch)
+            all_scores.extend(scores)
 
             for i, action in enumerate(action_batch):
                 logging.warning(
@@ -826,6 +916,13 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                     )
 
             start_idx = end_idx
+
+        if self.collect_trajectory and best_child is not None:
+            node.collector_expand_data = {
+                "action_space": all_actions,
+                "scores": all_scores,
+                "selected_action": best_child.action,
+            }
 
         return [best_child]
 

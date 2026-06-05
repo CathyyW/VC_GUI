@@ -195,10 +195,21 @@ def _get_agent(
     base_model_name = _BASE_MODEL.value
 
     if _AGENT_NAME.value == "VDroid":
-        agent = vdroid.VDroidAgent(env, base_model_name, adapter_dir=_LORA_DIR.value, llm_name=_LLM_NAME.value, service_name=_SERVICE_NAME.value, n_iters=int(
-            _ITERATION.value), family=family, summary_mode=_SUMMARY.value, num_actors=_NUM_GPUS.value,
-            closed_loop=_CLOSED_LOOP.value, max_replans=_MAX_REPLANS.value,
-            subgoal_step_limit=_SUBGOAL_STEP_LIMIT.value)
+        agent = vdroid.VDroidAgent(
+            env,
+            base_model_name,
+            adapter_dir=_LORA_DIR.value,
+            llm_name=_LLM_NAME.value,
+            service_name=_SERVICE_NAME.value,
+            n_iters=int(_ITERATION.value),
+            family=family,
+            summary_mode=_SUMMARY.value,
+            num_actors=_NUM_GPUS.value,
+            closed_loop=_CLOSED_LOOP.value,
+            max_replans=_MAX_REPLANS.value,
+            subgoal_step_limit=_SUBGOAL_STEP_LIMIT.value,
+            collect_trajectory=False,
+        )
 
     if not agent:
         raise ValueError(f'Unknown agent: {_AGENT_NAME.value}')

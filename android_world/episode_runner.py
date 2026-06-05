@@ -89,7 +89,7 @@ def run_episode(
   agent.save_path = os.path.join(save_dir, f"screen_shot/")
 
 
-  agent.explore_step_count_limit =  max_n_steps + 10
+  agent.explore_step_count_limit = max_n_steps + 10
   agent.depth_limit = max_n_steps + 10
   agent.iter_idx = 0
 
