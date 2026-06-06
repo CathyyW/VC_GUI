@@ -1,0 +1,146 @@
+{
+  "source": "/root/autodl-tmp/VC_GUI/androidworld_critic_sft_20260605_prefixed",
+  "seed": 20260606,
+  "corrections_file": "/root/autodl-tmp/VC_GUI/distill/critic_v11_corrections.json",
+  "correction_counts": {
+    "train": 0,
+    "val": 0,
+    "test": 3
+  },
+  "success_target": 227,
+  "self_target": 12,
+  "failure_type_targets": {
+    "no_effect": 70,
+    "text_error": 90,
+    "wrong_page": 20,
+    "wrong_target": 20,
+    "popup_blocking": 12,
+    "premature_complete": 12
+  },
+  "original_train": {
+    "total": 466,
+    "buckets": {
+      "failure": 227,
+      "self_correction": 12,
+      "success": 227
+    },
+    "failure_types": {
+      "no_effect": 165,
+      "popup_blocking": 3,
+      "premature_complete": 2,
+      "text_error": 46,
+      "wrong_page": 5,
+      "wrong_target": 6
+    },
+    "unique_failure_types": {
+      "no_effect": 75,
+      "popup_blocking": 1,
+      "premature_complete": 1,
+      "text_error": 22,
+      "wrong_page": 2,
+      "wrong_target": 3
+    },
+    "action_types": {
+      "answer": 1,
+      "clear_text": 1,
+      "click": 160,
+      "input_text": 105,
+      "long_press": 13,
+      "navigate_back": 11,
+      "navigate_home": 2,
+      "open_app": 48,
+      "scroll": 117,
+      "wait": 8
+    }
+  },
+  "rebuilt_train": {
+    "total": 463,
+    "buckets": {
+      "failure": 224,
+      "self_correction": 12,
+      "success": 227
+    },
+    "failure_types": {
+      "no_effect": 70,
+      "popup_blocking": 12,
+      "premature_complete": 12,
+      "text_error": 90,
+      "wrong_page": 20,
+      "wrong_target": 20
+    },
+    "unique_failure_types": {
+      "no_effect": 70,
+      "popup_blocking": 1,
+      "premature_complete": 1,
+      "text_error": 22,
+      "wrong_page": 2,
+      "wrong_target": 3
+    },
+    "action_types": {
+      "answer": 1,
+      "clear_text": 1,
+      "click": 184,
+      "input_text": 147,
+      "long_press": 9,
+      "navigate_back": 11,
+      "navigate_home": 10,
+      "open_app": 43,
+      "scroll": 55,
+      "wait": 2
+    }
+  },
+  "val": {
+    "total": 107,
+    "buckets": {
+      "failure": 22,
+      "self_correction": 32,
+      "success": 53
+    },
+    "failure_types": {
+      "no_effect": 22
+    },
+    "unique_failure_types": {
+      "no_effect": 22
+    },
+    "action_types": {
+      "clear_text": 1,
+      "click": 27,
+      "input_text": 4,
+      "long_press": 5,
+      "navigate_back": 31,
+      "open_app": 13,
+      "scroll": 26
+    }
+  },
+  "test": {
+    "total": 103,
+    "buckets": {
+      "failure": 23,
+      "self_correction": 30,
+      "success": 50
+    },
+    "failure_types": {
+      "no_effect": 9,
+      "premature_complete": 2,
+      "text_error": 11,
+      "wrong_page": 1
+    },
+    "unique_failure_types": {
+      "no_effect": 9,
+      "premature_complete": 2,
+      "text_error": 11,
+      "wrong_page": 1
+    },
+    "action_types": {
+      "answer": 1,
+      "clear_text": 2,
+      "click": 30,
+      "input_text": 25,
+      "long_press": 3,
+      "navigate_back": 28,
+      "open_app": 12,
+      "scroll": 1,
+      "wait": 1
+    }
+  }
+}

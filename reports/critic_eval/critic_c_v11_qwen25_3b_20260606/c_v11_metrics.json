@@ -1,0 +1,140 @@
+{
+  "model": "/root/autodl-tmp/models/Qwen2.5-3B-Instruct",
+  "adapter": "/root/autodl-tmp/VC_GUI/outputs/critic_qwen25_3b_lora_v11/adapter",
+  "data_file": "/root/autodl-tmp/VC_GUI/androidworld_critic_sft_20260605_v11/critic_distill_test.jsonl",
+  "total": 103,
+  "valid_json": {
+    "count": 103,
+    "percent": 100.0
+  },
+  "valid_schema": {
+    "count": 103,
+    "percent": 100.0
+  },
+  "exact_three_fields": {
+    "count": 85,
+    "percent": 82.52
+  },
+  "exact_four_fields_including_summary_text": {
+    "count": 24,
+    "percent": 23.3
+  },
+  "summary_critic_prefix": {
+    "count": 103,
+    "percent": 100.0
+  },
+  "field_accuracy": {
+    "outcome": {
+      "count": 87,
+      "percent": 84.47
+    },
+    "failure_type": {
+      "count": 88,
+      "percent": 85.44
+    },
+    "suggested_recovery": {
+      "count": 87,
+      "percent": 84.47
+    },
+    "summary_to_history": {
+      "count": 24,
+      "percent": 23.3
+    }
+  },
+  "confusion_by_gold_value": {
+    "outcome": {
+      "done": {
+        "done": 3,
+        "progress": 1,
+        "no_effect": 1
+      },
+      "failure": {
+        "failure": 12,
+        "progress": 4,
+        "no_effect": 1,
+        "done": 1
+      },
+      "no_effect": {
+        "no_effect": 26,
+        "progress": 3,
+        "failure": 4
+      },
+      "progress": {
+        "progress": 46,
+        "done": 1
+      }
+    },
+    "failure_type": {
+      "no_effect": {
+        "no_effect": 26,
+        "none": 3,
+        "text_error": 4
+      },
+      "none": {
+        "none": 51,
+        "no_effect": 1
+      },
+      "premature_complete": {
+        "none": 2
+      },
+      "text_error": {
+        "text_error": 10,
+        "none": 1
+      },
+      "wrong_page": {
+        "wrong_page": 1,
+        "no_effect": 1,
+        "none": 1
+      },
+      "wrong_target": {
+        "wrong_page": 1,
+        "none": 1
+      }
+    },
+    "suggested_recovery": {
+      "clear_text": {
+        "clear_text": 10,
+        "continue": 1
+      },
+      "complete_task": {
+        "complete_task": 3,
+        "continue": 1,
+        "retry": 1
+      },
+      "continue": {
+        "continue": 46,
+        "complete_task": 1
+      },
+      "navigate_back": {
+        "continue": 1
+      },
+      "retry": {
+        "retry": 28,
+        "navigate_back": 1,
+        "continue": 5,
+        "clear_text": 4,
+        "complete_task": 1
+      }
+    }
+  },
+  "bucket_metrics": {
+    "failure": {
+      "total": 23,
+      "valid_json_percent": 100.0,
+      "valid_schema_percent": 100.0,
+      "exact_three_fields_percent": 60.87
+    },
+    "self_correction": {
+      "total": 30,
+      "valid_json_percent": 100.0,
+      "valid_schema_percent": 100.0,
+      "exact_three_fields_percent": 80.0
+    },
+    "success": {
+      "total": 50,
+      "valid_json_percent": 100.0,
+      "valid_schema_percent": 100.0,
+      "exact_three_fields_percent": 94.0
+    }
+  }
+}
