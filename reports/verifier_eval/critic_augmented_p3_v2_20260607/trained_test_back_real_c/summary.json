@@ -1,0 +1,21 @@
+{
+  "input_pairs": "/root/autodl-tmp/VC_GUI/data/verifier_p3/diagnostics/anti_back_eval_test_20260607/anti_back_reject.jsonl",
+  "base_model": "/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
+  "lora_path": "/root/autodl-tmp/V-Droid/saved/Llama-31-8B-vc_critic_aug_p3_v2_e1_20260607",
+  "evaluated": 50,
+  "skipped_truncated_or_identical": 0,
+  "accuracy_chosen_gt_rejected": 0.98,
+  "chosen_not_preferred_or_tied_count": 1,
+  "rejected_navigate_back_preferred_or_tied_count": 1,
+  "rejected_action_types": {
+    "navigate_back": 50
+  },
+  "wrong_or_tie_rejected_action_types": {
+    "navigate_back": 1
+  },
+  "mean_margin": 28.543818473815918,
+  "min_margin": -14.269779205322266,
+  "p10_margin": 13.810981750488281,
+  "p50_margin": 29.853275299072266,
+  "p90_margin": 41.61265182495117
+}

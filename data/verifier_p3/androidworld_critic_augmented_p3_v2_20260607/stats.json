@@ -1,0 +1,50 @@
+{
+  "source": {
+    "trajectories_root": ".\\data\\VC_raw_traj_ADW",
+    "critic_data_dir": null,
+    "critic_labels_file": ".\\labeling_output\\runs\\20260605_gpt4o_adw_merged\\labels\\critic_labels_reviewed_merged_final.jsonl",
+    "corrections_file": ".\\distill\\critic_v11_corrections.json"
+  },
+  "split_strategy": "group_balanced",
+  "max_rejected_per_step": 3,
+  "skip_bad_selected_chosen": true,
+  "skip_unverified_back_chosen": true,
+  "trajectories": 49,
+  "steps_seen": 689,
+  "steps_with_pairs": {
+    "test": 53,
+    "train": 445,
+    "val": 55
+  },
+  "pairs": {
+    "test": 159,
+    "train": 1335,
+    "val": 165
+  },
+  "rules": {
+    "initial_or_previous_progress_selected": 295,
+    "previous_failure_recovery_retry_fallback_selected": 11,
+    "previous_no_effect_top_non_repeat": 174,
+    "previous_no_effect_selected_non_repeat": 37,
+    "previous_failure_recovery_navigate_back": 3,
+    "previous_done_complete_task": 3,
+    "previous_failure_recovery_clear_text": 30
+  },
+  "previous_outcomes": {
+    "<none>": 47,
+    "progress": 248,
+    "failure": 44,
+    "no_effect": 211,
+    "done": 3
+  },
+  "current_outcomes": {
+    "progress": 336,
+    "done": 25,
+    "no_effect": 179,
+    "failure": 13
+  },
+  "skipped": {
+    "bad_selected_action_used_as_chosen": 133,
+    "unverified_navigate_back_used_as_chosen": 3
+  }
+}

@@ -142,3 +142,14 @@ cython_debug/
 /saved
 V-Droid-8B-0323
 collected_trajectories
+
+# Local model weights and transfer archives
+*.safetensors
+*.pth
+*.pt
+*.ckpt
+*.gguf
+*.zip
+*.tar
+*.tar.gz
+/models/

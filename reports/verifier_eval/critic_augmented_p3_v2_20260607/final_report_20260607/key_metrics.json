@@ -1,0 +1,26 @@
+{
+  "full_test": {
+    "evaluated_pairs": 159,
+    "original_accuracy": 0.89937106918239,
+    "trained_accuracy": 1.0,
+    "accuracy_gain_percentage_points": 10.062893081761004,
+    "original_errors": 16,
+    "trained_errors": 0
+  },
+  "navigate_back_diagnostic": {
+    "evaluated_pairs": 50,
+    "original_real_c_accuracy": 0.68,
+    "trained_real_c_accuracy": 0.98,
+    "accuracy_gain_percentage_points": 29.999999999999993,
+    "original_real_c_back_errors": 16,
+    "trained_real_c_back_errors": 1
+  },
+  "critic_ablation_after_training": {
+    "real_c_accuracy": 0.98,
+    "empty_c_accuracy": 0.98,
+    "accuracy_difference_percentage_points": 0.0,
+    "real_c_mean_margin": 28.543818473815918,
+    "empty_c_mean_margin": 24.163681831359863,
+    "mean_margin_difference": 4.380136642456055
+  }
+}

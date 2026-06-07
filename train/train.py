@@ -14,7 +14,7 @@ import numpy as np
 target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]
 MAX_LENGTH = 2800
 os.environ["NCCL_TIMEOUT"] = "3600"
-wandb.login(key="")
+# AutoDL training uses local logs and does not require a wandb login.
 
 def is_main_process():
     return deepspeed.comm.get_rank() == 0
@@ -43,6 +43,9 @@ def get_args():
     parser.add_argument('--train_from_scratch', default=1, type=int, help='train the model from scratch or not')
 
     parser.add_argument('--add_special_tokens', default=0, type=int, help='use predefined special tokens or not')
+    parser.add_argument('--data_path', default=None, type=str, help='path to the training pair JSON array')
+    parser.add_argument('--eval_data_path', default=None, type=str, help='optional held-out evaluation pair JSON array')
+    parser.add_argument('--base_model_path', default=None, type=str, help='optional local base model path')
 
     
     args = parser.parse_args()
@@ -76,7 +79,10 @@ def get_args():
     elif args.model == "Deepseek-r1-Qwen-7B":
         args.model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 
-    args.data_path = data_path + '.json'
+    if args.data_path is None:
+        args.data_path = data_path + '.json'
+    if args.base_model_path:
+        args.model_name = args.base_model_path
 
     if args.lora_path is None:
         args.train_from_scratch = 1
