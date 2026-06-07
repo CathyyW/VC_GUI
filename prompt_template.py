@@ -59,11 +59,37 @@ PROMPT_PREFIX_V2 = (
     'The current date is Sun, Oct 15.\n\n'
 )
 
+PROMPT_PREFIX_VC = (
+    'You are an agent capable of operating an Android phone on behalf of a user. Your task is to assist with user requests or goals by:\n'
+    '1. Answering questions or chat-like messages, such as "What is my schedule for today?".\n'
+    "2. Performing tasks step-by-step on the phone based on the user's instructions.\n\n"
+    'For each step, you will be provided:\n'
+    '- A history of actions you have taken so far.\n'
+    '- Critic feedback about the outcomes of previous actions.\n'
+    "- The current screenshot's HTML description.\n\n"
+)
+
 
 SELF_EVAL_TEMPLATE_VERIFIER_TRAINING_V3 = (
     '{prompt_prefix}'
     + 'The (overall) user goal/request is: {goal}\n\n'
     'Here is the history of actions taken:\n{history}\n\n'
+    'Here is the detailed information about the UI elements in the current screenshot:\n{before_elements}\n'
+    '\n'
+    'Your task: \n'
+    '- Determine if the action is helpful for completing the user\'s task.\n'
+    '- Respond with **"Yes"** if the action is helpful, even if it does not directly complete the task.\n'
+    '- Respond with **"No"** if the action is not helpful for the task.\n'
+    + '\n'
+    'Is {action} helpful for completing the task?\n'
+    'Answer:'
+)
+
+SELF_EVAL_TEMPLATE_VERIFIER_TRAINING_VC = (
+    '{prompt_prefix}'
+    + 'The (overall) user goal/request is: {goal}\n\n'
+    'Here is the history of actions taken:\n{history}\n\n'
+    'Here is the critic feedback from previous actions:\n{critic_summary}\n\n'
     'Here is the detailed information about the UI elements in the current screenshot:\n{before_elements}\n'
     '\n'
     'Your task: \n'
@@ -309,34 +335,51 @@ def summarize_prompt(
     )
 
 
+def _format_verifier_history(history: list[str], use_critic: bool) -> str:
+    if history:
+        return '\n'.join(history)
+    if use_critic:
+        return '(empty)'
+    return 'You just started, no action has been performed yet.'
+
+
 def action_selection_prompt_with_verifier(
     action: str,
     history: list[str],
     goal: str,
     before_elements: str,
+    critic_summary: str | None = None,
 ) -> str:
     """Generate the prompt for the self-evaluation step.
 
     Args:
         action: Action picked.
-        reason: The reason to pick the action.
+        history: Summaries for previous steps.
         goal: The overall goal.
         before_elements: Information for UI elements on the before screenshot.
+        critic_summary: Previous-step critic feedback. When not None, use the
+            critic-augmented verifier prompt used during VC training.
 
     Returns:
-        The text prompt for summarization that will be sent to gpt4v.
+        The text prompt for verifier scoring.
     """
+    use_critic = critic_summary is not None
+    history_text = _format_verifier_history(history, use_critic)
 
-    if history:
-        history = '\n'.join(history)
-    else:
-        history = 'You just started, no action has been performed yet.'
+    if use_critic:
+        return SELF_EVAL_TEMPLATE_VERIFIER_TRAINING_VC.format(
+            prompt_prefix=PROMPT_PREFIX_VC,
+            goal=goal,
+            history=history_text,
+            critic_summary=critic_summary or '',
+            before_elements=before_elements,
+            action=action,
+        )
 
-    prompt_prefix = PROMPT_PREFIX_V2
     return SELF_EVAL_TEMPLATE_VERIFIER_TRAINING_V3.format(
-        prompt_prefix=prompt_prefix,
+        prompt_prefix=PROMPT_PREFIX_V2,
         goal=goal,
-        history=history,
+        history=history_text,
         before_elements=before_elements,
         action=action,
     )

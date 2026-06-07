@@ -111,10 +111,19 @@ def _state_html_and_actions(ui_state, family: str) -> tuple[str, list[str]]:
 
 @ray.remote(num_gpus=1)
 class ModelActor:
-    def __init__(self, service_name, model_name, lora_dir, acc_design, temperature=0.2):
+    def __init__(
+        self,
+        service_name,
+        model_name,
+        lora_dir,
+        acc_design,
+        temperature=0.2,
+        use_critic_verifier: bool = False,
+    ):
         from android_world.agents.infer import Gpt4_Llama_Mix_Wrapper
         reward_type = "probs" if acc_design == "policy" else "score"
         prefix_share = False if acc_design in ["no_prefix", "policy"] else True
+        self.use_critic_verifier = use_critic_verifier
 
         self.llm = Gpt4_Llama_Mix_Wrapper(
             'gpt-4',
@@ -158,8 +167,17 @@ class ModelActor:
         )
 
     def warm_up(self):
-        warm_up_text = PROMPT_PREFIX_V2 + \
-            'The (overall) user goal/request is: '
+        if self.use_critic_verifier:
+            warm_up_text = action_selection_prompt_with_verifier(
+                '{"action_type": "wait"}',
+                [],
+                'warm up',
+                '<div></div>',
+                critic_summary='',
+            )
+        else:
+            warm_up_text = PROMPT_PREFIX_V2 + \
+                'The (overall) user goal/request is: '
         self.predict_scores_batch([warm_up_text])
         return True
 
@@ -206,6 +224,9 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         max_replans: int = 2,
         subgoal_step_limit: int = 4,
         collect_trajectory: bool = False,
+        vc_loop: bool = False,
+        critic_base_model: str | None = None,
+        critic_adapter_dir: str | None = None,
     ):
         """Initializes a M3A Agent.
 
@@ -229,11 +250,19 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         if not ray.is_initialized():
             ray.init()
 
+        self.vc_loop = vc_loop
+        self.critic_summary = ''
+
         actors = []
         ModelClass = ModelActor.options(num_gpus=1)
         for _ in range(num_actors):
             actor = ModelClass.remote(
-                service_name, local_model_name, adapter_dir, "dynamic_batch")
+                service_name,
+                local_model_name,
+                adapter_dir,
+                "dynamic_batch",
+                use_critic_verifier=vc_loop,
+            )
             actors.append(actor)
 
         ray.get([act.ping.remote() for act in actors])
@@ -299,6 +328,19 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         self._trajectory_instance_id: int = 0
         self._trajectory_seed: int | None = None
 
+        self.critic = None
+        if vc_loop:
+            if not critic_base_model or not critic_adapter_dir:
+                raise ValueError(
+                    'vc_loop=True requires critic_base_model and critic_adapter_dir.'
+                )
+            from android_world.agents.critic_model import CriticModel
+            print(
+                f'Initializing critic: base={critic_base_model} '
+                f'adapter={critic_adapter_dir}'
+            )
+            self.critic = CriticModel(critic_base_model, critic_adapter_dir)
+
         warmup_futs = [act.warm_up.remote() for act in actors]
         ray.get(warmup_futs)
         self.num_actors = num_actors
@@ -348,6 +390,41 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
             if step_info.get("summary")
         ]
 
+    def _critic_history_summaries(self) -> list[str]:
+        return self._trajectory_history_summaries()
+
+    def _verifier_history_summaries(self) -> list[str]:
+        if self.vc_loop:
+            return self._critic_history_summaries()
+        return [
+            'Step ' + str(i + 1) + '- ' + step_info['summary']
+            for i, step_info in enumerate(self.history)
+            if step_info.get('summary')
+        ]
+
+    def _run_critic_for_step(self, node: MCTSNode) -> dict[str, Any]:
+        parent = node.parent
+        if parent is None or self.critic is None:
+            return {}
+
+        before_ui = parent.node_info.get('html_desc') or ''
+        after_ui = node.node_info.get('html_desc') or ''
+        action = node.action or ''
+        history = self._critic_history_summaries()
+
+        critic_output = self.critic.evaluate(
+            goal=self.goal,
+            history=history,
+            before_ui=before_ui,
+            action=action,
+            after_ui=after_ui,
+        )
+        print(f'Critic output: {json.dumps(critic_output, ensure_ascii=False)}')
+        logging.warning(
+            'Critic output: ' + json.dumps(critic_output, ensure_ascii=False)
+        )
+        return critic_output
+
     def _try_record_trajectory_step(self, node: MCTSNode) -> None:
         if not self.collect_trajectory or not self._trajectory_record_enabled:
             return
@@ -387,6 +464,7 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
             self.history_traj.append(self.history)
 
         self.history = []
+        self.critic_summary = ''
 
     def step(self, node: MCTSNode, converted_action,):
         logical_screen_size = self.env.logical_screen_size
@@ -502,6 +580,13 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
 
         print('Summary: ' + summary)
         logging.warning('Summary: ' + summary)
+
+        if self.critic is not None:
+            critic_output = self._run_critic_for_step(node)
+            node.node_info['critic_output'] = critic_output
+            node.node_info['critic_prompt_history'] = self._critic_history_summaries()
+            self.critic_summary = critic_output.get('summary_to_history', '')
+
         if self._trajectory_record_enabled:
             self._try_record_trajectory_step(node)
         return state
@@ -722,14 +807,15 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         across self.actors. Then flatten the results in the right order and return them.
         """
 
+        critic_summary = self.critic_summary if self.vc_loop else None
         input_prompts = []
         for action in actions:
-            # Prepare your prompt as you do normally
             input_prompt = action_selection_prompt_with_verifier(
                 action,
                 history,
                 self.goal,
                 ui_desc,
+                critic_summary=critic_summary,
             )
             input_prompts.append(input_prompt)
 
@@ -859,8 +945,7 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         available_actions = node.state["available_actions"]
         logging.warning(available_actions)
 
-        step_summary = ['Step ' + str(i+1) + '- ' + step_info['summary']
-                        for i, step_info in enumerate(self.history)]
+        step_summary = self._verifier_history_summaries()
 
         best_child = self.score_by_batch(
             node, available_actions, step_summary, child_node_info)
@@ -929,6 +1014,7 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
     def _reset_and_construct_root(self):
         self.step_idx = 0
         self.history = []
+        self.critic_summary = ''
         state = {
             'screenshot_raw': None,
             'screenshot_som': None,

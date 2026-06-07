@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-cd /root/autodl-tmp/V-Droid
+cd /root/autodl-tmp/VC_GUI
 export HF_ENDPOINT=https://hf-mirror.com
 export HF_HOME=/root/autodl-tmp/huggingface
 export HF_HUB_CACHE=/root/autodl-tmp/huggingface/hub
@@ -21,7 +21,10 @@ setup=False # whether to perform the emulator and evelaution env setup
 
 agent_name="VDroid" # the agent name used for the eveluation, e.g., default t3a, m3a in androidworld or VDroid
 base_model="/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct-bnb-4bit"
-lora_name="/root/autodl-tmp/V-Droid/V-Droid-8B-0323" # the name of the folder where the lora weights of VDroid is saved
+lora_name="/root/autodl-tmp/models/verifier_v_critic_augmented_p3_v2" # critic-augmented V LoRA
+vc_loop=True # set True to enable V+C closed-loop inference
+critic_base_model="/root/autodl-tmp/models/Qwen2.5-3B-Instruct"
+critic_adapter_dir="/root/autodl-tmp/models/critic_c_v11"
 summary=llm # the mode for the working memory construction
 llm_name="gpt-4o-mini" # the llm used for the action completion and working memory construction
 service_name="openai" # the name of the service used for calling the llm above
@@ -81,6 +84,16 @@ else
     echo "task_range=all tasks=all"
 fi
 echo "save_name=$save_name"
+echo "vc_loop=$vc_loop critic_base_model=$critic_base_model critic_adapter_dir=$critic_adapter_dir"
+
+vc_args=()
+if [[ "$vc_loop" == "True" || "$vc_loop" == "true" ]]; then
+    vc_args=(
+        --vc_loop=True
+        --critic_base_model="$critic_base_model"
+        --critic_adapter_dir="$critic_adapter_dir"
+    )
+fi
 
 python run_suite.py \
     --agent_name=$agent_name \
@@ -95,6 +108,7 @@ python run_suite.py \
     --subgoal_step_limit=$subgoal_step_limit \
     --save_name=$save_name \
     "${tasks_arg[@]}" \
+    "${vc_args[@]}" \
     --device_name=$emulator_name \
     --console_port=$console_port \
     --grpc_port=$grpc \
