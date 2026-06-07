@@ -1,6 +1,5 @@
 from dataloader import PairwiseDataset, load_data_pairs
 from transformers import AutoTokenizer, set_seed, TrainingArguments, Trainer
-from trl import DPOConfig, DPOTrainer, SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
 import os
@@ -52,7 +51,7 @@ def pair_wise_training(args, tokenizer):
         bf16=False,
         learning_rate=args.learning_rate,
         optim="adamw_torch",
-        report_to="wandb",
+        report_to=[],
         # deepspeed="ds_config.json",
         save_total_limit=15,
         seed=args.seed,
@@ -64,13 +63,16 @@ def pair_wise_training(args, tokenizer):
     pairs = load_data_pairs(args.data_path)
     random.shuffle(pairs)
 
-    if args.split < 100:
+    if args.eval_data_path:
+        train_pairs = pairs
+        val_pairs = load_data_pairs(args.eval_data_path)
+    elif args.split < 100:
         train_size = int(0.01 * args.split * len(pairs)) 
         train_pairs = pairs[0:train_size]
         val_pairs = pairs[train_size:]
     else:
         train_size = int(0.99 * len(pairs)) 
-        train_pairs = pairs
+        train_pairs = pairs[:train_size]
         val_pairs = pairs[train_size:] 
 
     # Make pairwise datasets for training

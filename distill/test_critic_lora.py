@@ -39,6 +39,9 @@ def main():
                 **inputs,
                 max_new_tokens=args.max_new_tokens,
                 do_sample=False,
+                temperature=None,
+                top_p=None,
+                top_k=None,
                 eos_token_id=tokenizer.eos_token_id,
                 pad_token_id=tokenizer.pad_token_id,
             )

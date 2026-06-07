@@ -1,0 +1,4 @@
+462c7021c64ed3020d26cf9d9868e2bad315acc553846eb8ab0162f40cad04cd  /root/autodl-tmp/models/critic_c_v11/adapter_model.safetensors
+2a20c67093aa77fa60f8000fea0b3720bd0d0fea0bd44b9978b2f2a87241caa9  /root/autodl-tmp/models/verifier_v_critic_augmented_p3_v2/adapter_model.safetensors
+9819d305c50919e3b7258a300cdc440610f21669d204d1cb11820de463789199  /root/autodl-tmp/models/verifier_v_critic_augmented_p3_v2/v_head.pth
+f8785666dc97174f608b891f1f45fef457c053d67b4e754fe01a520db09a8452  /root/autodl-tmp/models/V-Droid-8B-0323/adapter_model.safetensors

@@ -1,0 +1,14 @@
+{
+  "input_pairs": "/root/autodl-tmp/VC_GUI/data/verifier_p3/androidworld_critic_augmented_p3_v2_20260607/test.jsonl",
+  "base_model": "/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
+  "lora_path": "/root/autodl-tmp/V-Droid/saved/Llama-31-8B-vc_critic_aug_p3_v2_e1_20260607",
+  "evaluated": 159,
+  "skipped_truncated_or_identical": 0,
+  "accuracy_chosen_gt_rejected": 1.0,
+  "back_preferred_or_tied_count": 0,
+  "mean_margin": 43.11448572866572,
+  "min_margin": 8.75994873046875,
+  "p10_margin": 23.404699325561523,
+  "p50_margin": 41.803558349609375,
+  "p90_margin": 61.818294525146484
+}

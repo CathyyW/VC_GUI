@@ -1,0 +1,133 @@
+{
+  "source_debug_jsonl": "data\\verifier_p3\\androidworld_critic_augmented_p3_20260606_safe_full\\val_debug.jsonl",
+  "anti_back_reject": {
+    "pairs": 54,
+    "unique_steps": 54,
+    "previous_outcomes": {
+      "null": 5,
+      "progress": 18,
+      "no_effect": 21,
+      "failure": 10
+    },
+    "previous_suggested_recoveries": {
+      "null": 5,
+      "continue": 18,
+      "retry": 24,
+      "clear_text": 7
+    },
+    "construction_rules": {
+      "initial_or_previous_progress_selected": 23,
+      "previous_no_effect_top_non_repeat": 18,
+      "previous_no_effect_selected_non_repeat": 3,
+      "previous_failure_recovery_retry_fallback_selected": 3,
+      "previous_failure_recovery_clear_text": 7
+    },
+    "current_outcomes": {
+      "progress": 34,
+      "no_effect": 18,
+      "done": 2
+    },
+    "chosen_action_types": {
+      "open_app": 22,
+      "click": 10,
+      "status": 2,
+      "input_text": 12,
+      "scroll": 1,
+      "clear_text": 7
+    },
+    "rejected_action_types": {
+      "navigate_back": 54
+    }
+  },
+  "anti_back_reject_empty_critic": {
+    "pairs": 54,
+    "unique_steps": 54,
+    "previous_outcomes": {
+      "null": 5,
+      "progress": 18,
+      "no_effect": 21,
+      "failure": 10
+    },
+    "previous_suggested_recoveries": {
+      "null": 5,
+      "continue": 18,
+      "retry": 24,
+      "clear_text": 7
+    },
+    "construction_rules": {
+      "initial_or_previous_progress_selected": 23,
+      "previous_no_effect_top_non_repeat": 18,
+      "previous_no_effect_selected_non_repeat": 3,
+      "previous_failure_recovery_retry_fallback_selected": 3,
+      "previous_failure_recovery_clear_text": 7
+    },
+    "current_outcomes": {
+      "progress": 34,
+      "no_effect": 18,
+      "done": 2
+    },
+    "chosen_action_types": {
+      "open_app": 22,
+      "click": 10,
+      "status": 2,
+      "input_text": 12,
+      "scroll": 1,
+      "clear_text": 7
+    },
+    "rejected_action_types": {
+      "navigate_back": 54
+    }
+  },
+  "valid_back_chosen": {
+    "pairs": 5,
+    "unique_steps": 1,
+    "previous_outcomes": {
+      "failure": 5
+    },
+    "previous_suggested_recoveries": {
+      "navigate_back": 5
+    },
+    "construction_rules": {
+      "previous_failure_recovery_navigate_back": 5
+    },
+    "current_outcomes": {
+      "no_effect": 5
+    },
+    "chosen_action_types": {
+      "navigate_back": 5
+    },
+    "rejected_action_types": {
+      "wait": 1,
+      "answer": 1,
+      "open_app": 1,
+      "navigate_home": 1,
+      "status": 1
+    }
+  },
+  "valid_back_chosen_empty_critic": {
+    "pairs": 5,
+    "unique_steps": 1,
+    "previous_outcomes": {
+      "failure": 5
+    },
+    "previous_suggested_recoveries": {
+      "navigate_back": 5
+    },
+    "construction_rules": {
+      "previous_failure_recovery_navigate_back": 5
+    },
+    "current_outcomes": {
+      "no_effect": 5
+    },
+    "chosen_action_types": {
+      "navigate_back": 5
+    },
+    "rejected_action_types": {
+      "wait": 1,
+      "answer": 1,
+      "open_app": 1,
+      "navigate_home": 1,
+      "status": 1
+    }
+  }
+}
