@@ -1,0 +1,100 @@
+{
+  "split_strategy": "group_stratified",
+  "train_ratio": 0.7,
+  "val_ratio": 0.15,
+  "test_ratio": 0.15000000000000005,
+  "balanced_train": false,
+  "train_bucket_ratios": {
+    "success": 0.4875,
+    "failure": 0.4875,
+    "self_correction": 0.025
+  },
+  "raw_before_balance": {
+    "train": {
+      "total": 479,
+      "buckets": {
+        "success": 227,
+        "failure": 104,
+        "self_correction": 148
+      },
+      "outcomes": {
+        "progress": 238,
+        "done": 16,
+        "no_effect": 180,
+        "failure": 45
+      }
+    },
+    "val": {
+      "total": 107,
+      "buckets": {
+        "success": 53,
+        "failure": 22,
+        "self_correction": 32
+      },
+      "outcomes": {
+        "progress": 51,
+        "done": 4,
+        "no_effect": 44,
+        "failure": 8
+      }
+    },
+    "test": {
+      "total": 103,
+      "buckets": {
+        "success": 49,
+        "failure": 24,
+        "self_correction": 30
+      },
+      "outcomes": {
+        "progress": 46,
+        "done": 5,
+        "no_effect": 36,
+        "failure": 16
+      }
+    }
+  },
+  "final": {
+    "train": {
+      "total": 466,
+      "buckets": {
+        "success": 227,
+        "failure": 227,
+        "self_correction": 12
+      },
+      "outcomes": {
+        "no_effect": 171,
+        "failure": 65,
+        "progress": 214,
+        "done": 16
+      }
+    },
+    "val": {
+      "total": 107,
+      "buckets": {
+        "success": 53,
+        "failure": 22,
+        "self_correction": 32
+      },
+      "outcomes": {
+        "progress": 51,
+        "done": 4,
+        "no_effect": 44,
+        "failure": 8
+      }
+    },
+    "test": {
+      "total": 103,
+      "buckets": {
+        "success": 49,
+        "failure": 24,
+        "self_correction": 30
+      },
+      "outcomes": {
+        "progress": 46,
+        "done": 5,
+        "no_effect": 36,
+        "failure": 16
+      }
+    }
+  }
+}

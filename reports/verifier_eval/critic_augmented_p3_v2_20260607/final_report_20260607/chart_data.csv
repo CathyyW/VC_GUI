@@ -1,0 +1,7 @@
+﻿chart,model,critic_input,accuracy_percent,error_or_tie_count,navigate_back_error_or_tie_count,mean_margin
+full_test,Original V-Droid,Real critic,89.937106918239,16,,44.04492534181607
+full_test,Critic-augmented V,Real critic,100.0,0,,43.11448572866572
+navigate_back_diagnostic,Original V-Droid,Real critic,68.0,16,16,21.378681449890138
+navigate_back_diagnostic,Original V-Droid,Empty critic,70.0,15,15,20.642957191467286
+navigate_back_diagnostic,Critic-augmented V,Real critic,98.0,1,1,28.543818473815918
+navigate_back_diagnostic,Critic-augmented V,Empty critic,98.0,1,1,24.163681831359863

@@ -1,0 +1,9 @@
+C_BASE_MODEL=/root/autodl-tmp/models/Qwen2.5-3B-Instruct
+C_ADAPTER=/root/autodl-tmp/models/critic_c_v11
+
+V_BASE_MODEL=/root/autodl-tmp/models/Meta-Llama-3.1-8B-Instruct-bnb-4bit
+V_ORIGINAL_ADAPTER=/root/autodl-tmp/models/V-Droid-8B-0323
+V_TRAINED_ADAPTER=/root/autodl-tmp/models/verifier_v_critic_augmented_p3_v2
+
+VC_CODE=/root/autodl-tmp/VC_GUI
+VDROID_CODE=/root/autodl-tmp/V-Droid

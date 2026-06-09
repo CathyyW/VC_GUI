@@ -1,0 +1,20 @@
+{
+  "RecipeAddMultipleRecipesFromImage_inst0_seed2293877352_step14": {
+    "outcome": "failure",
+    "failure_type": "text_error",
+    "suggested_recovery": "clear_text",
+    "summary_to_history": "[Critic] The previous input placed category text into the wrong field; clear the wrong text and enter the real category in the correct field."
+  },
+  "RecipeAddMultipleRecipesFromImage_inst0_seed2293877352_step15": {
+    "outcome": "failure",
+    "failure_type": "text_error",
+    "suggested_recovery": "clear_text",
+    "summary_to_history": "[Critic] The previous input duplicated the description text; clear it and enter the actual recipe description once."
+  },
+  "RecipeAddMultipleRecipesFromMarkor2_inst0_seed1406555389_step11": {
+    "outcome": "progress",
+    "failure_type": "none",
+    "suggested_recovery": "continue",
+    "summary_to_history": "[Critic] The previous scroll revealed additional recipe fields including Directions; continue filling the required details."
+  }
+}

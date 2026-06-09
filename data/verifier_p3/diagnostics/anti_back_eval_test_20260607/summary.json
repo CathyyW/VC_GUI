@@ -1,0 +1,141 @@
+{
+  "source_debug_jsonl": "data\\verifier_p3\\androidworld_critic_augmented_p3_20260606_safe_full\\test_debug.jsonl",
+  "anti_back_reject": {
+    "pairs": 50,
+    "unique_steps": 50,
+    "previous_outcomes": {
+      "null": 6,
+      "progress": 24,
+      "no_effect": 15,
+      "failure": 5
+    },
+    "previous_suggested_recoveries": {
+      "null": 6,
+      "continue": 24,
+      "retry": 16,
+      "clear_text": 4
+    },
+    "construction_rules": {
+      "initial_or_previous_progress_selected": 30,
+      "previous_no_effect_top_non_repeat": 14,
+      "previous_failure_recovery_clear_text": 4,
+      "previous_no_effect_selected_non_repeat": 1,
+      "previous_failure_recovery_retry_fallback_selected": 1
+    },
+    "current_outcomes": {
+      "progress": 31,
+      "done": 3,
+      "no_effect": 14,
+      "failure": 2
+    },
+    "chosen_action_types": {
+      "open_app": 16,
+      "click": 23,
+      "long_press": 2,
+      "scroll": 2,
+      "status": 1,
+      "clear_text": 5,
+      "input_text": 1
+    },
+    "rejected_action_types": {
+      "navigate_back": 50
+    }
+  },
+  "anti_back_reject_empty_critic": {
+    "pairs": 50,
+    "unique_steps": 50,
+    "previous_outcomes": {
+      "null": 6,
+      "progress": 24,
+      "no_effect": 15,
+      "failure": 5
+    },
+    "previous_suggested_recoveries": {
+      "null": 6,
+      "continue": 24,
+      "retry": 16,
+      "clear_text": 4
+    },
+    "construction_rules": {
+      "initial_or_previous_progress_selected": 30,
+      "previous_no_effect_top_non_repeat": 14,
+      "previous_failure_recovery_clear_text": 4,
+      "previous_no_effect_selected_non_repeat": 1,
+      "previous_failure_recovery_retry_fallback_selected": 1
+    },
+    "current_outcomes": {
+      "progress": 31,
+      "done": 3,
+      "no_effect": 14,
+      "failure": 2
+    },
+    "chosen_action_types": {
+      "open_app": 16,
+      "click": 23,
+      "long_press": 2,
+      "scroll": 2,
+      "status": 1,
+      "clear_text": 5,
+      "input_text": 1
+    },
+    "rejected_action_types": {
+      "navigate_back": 50
+    }
+  },
+  "valid_back_chosen": {
+    "pairs": 17,
+    "unique_steps": 1,
+    "previous_outcomes": {
+      "failure": 17
+    },
+    "previous_suggested_recoveries": {
+      "close_dialog": 17
+    },
+    "construction_rules": {
+      "previous_failure_recovery_close_dialog": 17
+    },
+    "current_outcomes": {
+      "no_effect": 17
+    },
+    "chosen_action_types": {
+      "navigate_back": 17
+    },
+    "rejected_action_types": {
+      "long_press": 6,
+      "click": 6,
+      "wait": 1,
+      "open_app": 1,
+      "answer": 1,
+      "navigate_home": 1,
+      "status": 1
+    }
+  },
+  "valid_back_chosen_empty_critic": {
+    "pairs": 17,
+    "unique_steps": 1,
+    "previous_outcomes": {
+      "failure": 17
+    },
+    "previous_suggested_recoveries": {
+      "close_dialog": 17
+    },
+    "construction_rules": {
+      "previous_failure_recovery_close_dialog": 17
+    },
+    "current_outcomes": {
+      "no_effect": 17
+    },
+    "chosen_action_types": {
+      "navigate_back": 17
+    },
+    "rejected_action_types": {
+      "long_press": 6,
+      "click": 6,
+      "wait": 1,
+      "open_app": 1,
+      "answer": 1,
+      "navigate_home": 1,
+      "status": 1
+    }
+  }
+}
