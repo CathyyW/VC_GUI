@@ -676,7 +676,7 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                         if node.parent.node_info['html_desc']:
                             node.node_info['html_desc'] = node.parent.node_info['html_desc']
                         node.reward, node.score_details = self.reward(
-                            node.score_details['self_eval'], node.is_terminal)
+                            self._get_self_eval(node), node.is_terminal)
                         node.score = node.reward
                         logging.warning(
                             f"The final reward for the finished node is {node.reward} ")
@@ -850,6 +850,23 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
         for i, (_, _, quality_output) in enumerate(combined_results):
             rewards.append(quality_output[0])
         return rewards
+
+    def _get_self_eval(self, *nodes: MCTSNode) -> float:
+        """Resolve self_eval from score_details or verifier score.
+
+        Older paths populate score_details['self_eval']; verifier scoring only
+        sets node.score. Check nodes in order so status actions scored by the
+        verifier can still finalize the episode.
+        """
+        for node in nodes:
+            if node is None:
+                continue
+            details = node.score_details or {}
+            if 'self_eval' in details and details['self_eval'] is not None:
+                return details['self_eval']
+            if node.score is not None:
+                return node.score
+        return 0.0
 
     def calculate_reward(self, self_eval, goal_reached=None) -> float:
         if goal_reached is None:
@@ -1425,7 +1442,8 @@ class VDroidAgent(base_agent.EnvironmentInteractingAgent):
                                 if node.parent.node_info['html_desc']:
                                     node.node_info['html_desc'] = node.parent.node_info['html_desc']
                                 node.reward, node.score_details = self.reward(
-                                    node.score_details['self_eval'], node.is_terminal)
+                                    self._get_self_eval(child, node),
+                                    node.is_terminal)
                                 node.score = node.reward
                                 logging.warning(
                                     f"The final reward for the finished node is {node.reward} ")
