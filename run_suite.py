@@ -163,6 +163,21 @@ _SUBGOAL_STEP_LIMIT = flags.DEFINE_integer(
     4,
     help='Default max V-Droid execution steps for each planner subgoal.',
 )
+_VC_LOOP = flags.DEFINE_boolean(
+    'vc_loop',
+    False,
+    help='Enable VC closed loop: post-action critic feeds summary_to_history to verifier.',
+)
+_CRITIC_BASE_MODEL = flags.DEFINE_string(
+    'critic_base_model',
+    None,
+    help='Base model path or repo id for the post-action critic.',
+)
+_CRITIC_ADAPTER_DIR = flags.DEFINE_string(
+    'critic_adapter_dir',
+    None,
+    help='LoRA adapter path for the post-action critic.',
+)
 
 
 _FIXED_TASK_SEED = flags.DEFINE_boolean(
@@ -209,6 +224,9 @@ def _get_agent(
             max_replans=_MAX_REPLANS.value,
             subgoal_step_limit=_SUBGOAL_STEP_LIMIT.value,
             collect_trajectory=False,
+            vc_loop=_VC_LOOP.value,
+            critic_base_model=_CRITIC_BASE_MODEL.value,
+            critic_adapter_dir=_CRITIC_ADAPTER_DIR.value,
         )
 
     if not agent:

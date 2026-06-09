@@ -113,6 +113,21 @@ _ITERATION = flags.DEFINE_string(
 )
 _SUMMARY = flags.DEFINE_string('summary', 'llm', 'Working memory summary mode.')
 _NUM_GPUS = flags.DEFINE_integer('num_gpus', 1, 'GPUs for verifier scoring.')
+_VC_LOOP = flags.DEFINE_boolean(
+    'vc_loop',
+    False,
+    'Enable VC closed loop with post-action critic feedback.',
+)
+_CRITIC_BASE_MODEL = flags.DEFINE_string(
+    'critic_base_model',
+    None,
+    'Base model for the post-action critic.',
+)
+_CRITIC_ADAPTER_DIR = flags.DEFINE_string(
+    'critic_adapter_dir',
+    None,
+    'LoRA adapter for the post-action critic.',
+)
 
 _OUTPUT_DIR = flags.DEFINE_string(
     'output_dir',
@@ -168,6 +183,9 @@ def _get_agent(env: interface.AsyncEnv, family: str) -> base_agent.EnvironmentIn
         num_actors=_NUM_GPUS.value,
         closed_loop=False,
         collect_trajectory=True,
+        vc_loop=_VC_LOOP.value,
+        critic_base_model=_CRITIC_BASE_MODEL.value,
+        critic_adapter_dir=_CRITIC_ADAPTER_DIR.value,
     )
     # Step budget (max_n_steps+10) is set in episode_runner, same as eval.
     agent.trajectory_output_dir = _OUTPUT_DIR.value

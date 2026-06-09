@@ -16,6 +16,7 @@
 
 import os
 import re
+import socket
 import time
 from typing import Any, Callable, Collection, Iterable, Literal, Optional, TypeVar
 import unicodedata
@@ -692,7 +693,7 @@ def launch_app(
   if activity is None:
     logging.error('Failed to launch app: %r', app_name)
     return None
-  start_activity(activity, extra_args=[], env=env, timeout_sec=5)
+  start_activity(activity, extra_args=[], env=env, timeout_sec=_DEFAULT_TIMEOUT_SECS)
   return app_name
 
 
@@ -1013,7 +1014,7 @@ def install_apk(
   """
   if not os.path.exists(apk_location):
     raise ValueError('APK does not exist.')
-  issue_generic_request(['install', apk_location], env, timeout_sec=30.0)
+  issue_generic_request(['install', apk_location], env, timeout_sec=240.0)
 
 
 def check_airplane_mode(env: env_interface.AndroidEnvInterface) -> bool:
@@ -1336,6 +1337,106 @@ def call_phone_number(
   return issue_generic_request(adb_args, env, timeout_sec)
 
 
+_EMULATOR_CONSOLE_AUTH_TOKEN_PATH = os.path.expanduser(
+    '~/.emulator_console_auth_token'
+)
+
+
+def _get_emulator_console_port(
+    env: env_interface.AndroidEnvInterface,
+) -> Optional[int]:
+  """Return the emulator console port, if available."""
+  env_port = os.environ.get('EMULATOR_CONSOLE_PORT')
+  if env_port:
+    return int(env_port)
+  try:
+    return int(
+        env._coordinator._simulator._config.emulator_launcher.emulator_console_port  # pylint: disable=protected-access
+    )
+  except AttributeError:
+    return None
+
+
+def _read_console_output(
+    sock: socket.socket,
+    timeout_sec: float,
+) -> str:
+  chunks: list[bytes] = []
+  deadline = time.time() + timeout_sec
+  while time.time() < deadline:
+    sock.settimeout(max(0.1, deadline - time.time()))
+    try:
+      data = sock.recv(4096)
+    except socket.timeout:
+      if chunks:
+        break
+      continue
+    if not data:
+      break
+    chunks.append(data)
+    combined = b''.join(chunks)
+    if b'OK\r\n' in combined or b'KO:' in combined:
+      break
+  return b''.join(chunks).decode(errors='replace')
+
+
+def _send_sms_via_emulator_console(
+    console_port: int,
+    phone_number: str,
+    message: str,
+    timeout_sec: float,
+) -> bool:
+  """Send an inbound SMS through the emulator console over SSH tunnel."""
+  if not os.path.exists(_EMULATOR_CONSOLE_AUTH_TOKEN_PATH):
+    return False
+
+  with open(_EMULATOR_CONSOLE_AUTH_TOKEN_PATH, encoding='utf-8') as token_file:
+    auth_token = token_file.read().strip()
+  if not auth_token:
+    return False
+
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  sock.settimeout(timeout_sec)
+  try:
+    sock.connect(('127.0.0.1', console_port))
+    _read_console_output(sock, timeout_sec)
+    sock.sendall(f'auth {auth_token}\n'.encode())
+    auth_output = _read_console_output(sock, timeout_sec)
+    if 'OK' not in auth_output:
+      logging.warning(
+          'Emulator console auth failed on port %s: %r',
+          console_port,
+          auth_output,
+      )
+      return False
+
+    sock.sendall(f'sms send {phone_number} {message}\n'.encode())
+    sms_output = _read_console_output(sock, timeout_sec)
+    if 'OK' in sms_output and 'KO:' not in sms_output:
+      logging.info(
+          'Sent emulator SMS via console port %s to %s',
+          console_port,
+          phone_number,
+      )
+      return True
+
+    logging.warning(
+        'Emulator console sms send failed on port %s: %r',
+        console_port,
+        sms_output,
+    )
+    return False
+  except OSError as error:
+    logging.warning(
+        'Failed to reach emulator console on port %s: %s',
+        console_port,
+        error,
+    )
+    return False
+  finally:
+    sock.close()
+
+
 def text_emulator(
     env: env_interface.AndroidEnvInterface,
     phone_number: str,
@@ -1354,6 +1455,18 @@ def text_emulator(
     A response object containing the ADB operation result.
   """
   escaped_phone_number = re.sub(r'[^0-9+]', '', phone_number)
+  console_port = _get_emulator_console_port(env)
+  if console_port is not None and _send_sms_via_emulator_console(
+      console_port,
+      escaped_phone_number,
+      message,
+      timeout_sec,
+  ):
+    response = adb_pb2.AdbResponse()
+    response.status = adb_pb2.AdbResponse.Status.OK
+    response.generic.output = b'OK'
+    return response
+
   adb_args = [
       'emu',
       'sms',

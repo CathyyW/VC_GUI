@@ -1,10 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-$IdentityFile = Join-Path $env:USERPROFILE ".ssh\autodl_vdroid"
+$IdentityFile = Join-Path $env:USERPROFILE ".ssh\id_rsa"
 
 $SshArgs = @(
   "-F", "NUL",
-  "-p", "18563",
+  "-p", "49005",
   "-N",
   "-v",
   "-o", "ExitOnForwardFailure=yes",
@@ -17,7 +17,7 @@ $SshArgs = @(
 if (Test-Path $IdentityFile) {
   $SshArgs = @(
     "-F", "NUL",
-    "-p", "18563",
+    "-p", "49005",
     "-N",
     "-v",
     "-i", $IdentityFile,

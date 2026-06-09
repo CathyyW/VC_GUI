@@ -151,15 +151,24 @@ def load_lora_model(model_name, lora_rank=16, lora_alpha=32, if_train=False):
     return model
 
 
+def _resolve_tokenizer_path(model_name: str, lora_path: str | None) -> str:
+    """Prefer adapter tokenizer only when it actually ships tokenizer files."""
+    if lora_path and os.path.isdir(lora_path):
+        if os.path.isfile(os.path.join(lora_path, "tokenizer_config.json")):
+            return lora_path
+    return model_name
+
+
 def load_lora_model_from_dir(model_name, lora_path, lora_name='default', kv_cache=False, tokenizer=None, train_from_scratch=1, enable_prefix_caching=True, if_train=False):
     if kv_cache:
         if os.path.isdir(lora_path):
             adapter_dir = lora_path
         else:
             adapter_dir = snapshot_download(repo_id=lora_path)
+        tokenizer_path = _resolve_tokenizer_path(model_name, adapter_dir)
         model = LLM(
             model=model_name,
-            tokenizer=lora_path if "llama" in model_name.lower() else model_name,
+            tokenizer=tokenizer_path,
             trust_remote_code=True,
             quantization="bitsandbytes",
             load_format="bitsandbytes",
