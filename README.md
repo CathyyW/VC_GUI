@@ -13,7 +13,7 @@
     ~/Library/Android/sdk/emulator/emulator -avd $EMULATOR_NAME -no-snapshot -grpc 8554
     ```
 
-3. [Optional] It's recommended to use `conda`, which you can download [here](https://docs.anaconda.com/free/miniconda/miniconda-install/).
+3. [Optional] It's recommended to use `conda`.
 
     ```
     conda create -n android_world python=3.11.8
@@ -27,7 +27,7 @@
     ```python
     pip install -r requirements.txt
     ```
-
+    
 5. Modify vLLM.
      
     Please navigate to vllm/model_executor/layers/sampler.py, add the following to line 317.
@@ -40,45 +40,15 @@
     ```
     (See https://github.com/vllm-project/vllm/issues/11397 for more explanations)
 
-6. Add model provider APIs as environment variables.
 
-    Three API providers are supported: OpenAI and its compatible APIs, and Azure OpenAI services. You may configure any of these based on your preferences.
-   
-   **These APIs are only used for building the working memory, V-Droid allows to build the working memory without using these third-party APIs**
-    ```bash
-    # Add to .bashrc.
-
-    # use Gemini GCP service, which requires API key
-    export GCP_API_KEY=
-    
-    # use openai compatible APIs, including OPENAI, Qwen and DeepSeek
-    export OPENAI_ENDPOINT=
-    export OPENAI_MODEL_NAME=
-    export OPENAI_API_VERSION=
-    export OPENAI_API_KEY=
-
-
-    # use azure openai services
-    export AZURE_OPENAI_API_KEY=
-    export AZURE_OPENAI_MODEL_NAME=
-    export AZURE_OPENAI_API_VERSION=
-    export AZURE_OPENAI_ENDPOINT=
-    ```
-
-8. Download Lora weights for V-Droid model
-   
-   The V-Droid model weight is available at https://huggingface.co/V-Droid/V-Droid-8B-0323
-
-
-9. Lauanch the emulator and run the eveluation tasks
+6. Lauanch the emulator and run the eveluation tasks
    ```bash
    emulator -avd AndroidWorldAvd -no-window -no-snapshot -grpc 8554
    bash main.sh
    ```
 
-
-10. Training 
-   You may use the following code to train the lora module in V-Droid. We provide several training pairs to use.
+7. Training 
+ 
    ```bash
    train.sh 
    ```
