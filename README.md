@@ -46,6 +46,7 @@
    emulator -avd AndroidWorldAvd -no-window -no-snapshot -grpc 8554
    bash main.sh
    ```
+   If the emulator has to run locally due to resource limitations, please use reverse SSH forwarding. See [docs/exp.md](https://github.com/CathyyW/VC_GUI/blob/main/docs/exp.md) for details.
 
 7. Training 
  
